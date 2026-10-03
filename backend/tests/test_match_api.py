@@ -112,3 +112,23 @@ class TestMatchApi:
         response = client.options("/api/match", headers=headers)
         assert response.status_code == 200
         assert response.headers.get("access-control-allow-origin") == "https://hubmi-git-feat-frontend-daenyalls-projects.vercel.app"
+
+    def test_cors_cloudflare_tunnel_allowed(self):
+        """Weryfikacja CORS dla publicznych tuneli Cloudflare Tunnel (trycloudflare.com)."""
+        headers = {
+            "Origin": "https://hubmi-demo-hackyeah.trycloudflare.com",
+            "Access-Control-Request-Method": "POST",
+        }
+        response = client.options("/api/match", headers=headers)
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == "https://hubmi-demo-hackyeah.trycloudflare.com"
+
+    def test_cors_render_allowed(self):
+        """Weryfikacja CORS dla wdrożeń na Render (onrender.com)."""
+        headers = {
+            "Origin": "https://hubmi-frontend.onrender.com",
+            "Access-Control-Request-Method": "POST",
+        }
+        response = client.options("/api/match", headers=headers)
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == "https://hubmi-frontend.onrender.com"
