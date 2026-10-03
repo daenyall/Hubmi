@@ -91,6 +91,7 @@ def get_current_user(
                 user_role == "rops_admin"
                 or user_metadata.get("role") == "rops_admin"
                 or app_metadata.get("role") == "rops_admin"
+                or app_metadata.get("hubmi_role") == "rops_admin"
             )
 
             if is_rops_email or has_admin_role:
