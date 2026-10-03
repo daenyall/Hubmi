@@ -261,6 +261,7 @@ test("plan adaptacji wysyła kontekst zgodny z kontraktem Middleman AI", async (
   });
   assert.deepEqual(await api.adaptInnovation("Tytuł", "  Mała gmina  ", "Opis"), {
     innovation_title: "Tytuł", adaptation_plan: "Plan testowy",
+    is_ai_generated: null, generation_source: "", disclaimer: "",
   });
 });
 
@@ -354,4 +355,63 @@ test("400 pokazuje tekstowy detail backendu, a 422 nie ujawnia pól Pydantic", a
     assert.match(error.message, /2000/);
     return true;
   });
+});
+
+test("plan adaptacji zachowuje is_ai_generated, generation_source i disclaimer", async (t) => {
+  const api = apiFor(t);
+  const wire = {
+    innovation_title: "Mobilny Asystent Seniora",
+    adaptation_plan: "# PLAN\nTreść planu.",
+    is_ai_generated: true,
+    generation_source: "gemini",
+    disclaimer: "  Szacunki mają charakter orientacyjny.  ",
+  };
+  t.mock.method(globalThis, "fetch", async () => jsonResponse(wire));
+  const result = await api.adaptInnovation("Mobilny Asystent Seniora", "Mała gmina wiejska z świetlicą.");
+  assert.equal(result.is_ai_generated, true);
+  assert.equal(result.generation_source, "gemini");
+  assert.equal(result.disclaimer, "Szacunki mają charakter orientacyjny.");
+  assert.equal(result.adaptation_plan, wire.adaptation_plan);
+});
+
+test("szablon awaryjny jest rozpoznawalny jako nie-AI", (t) => {
+  const api = apiFor(t);
+  const result = api.parseAdaptResponse({
+    innovation_title: "Innowacja",
+    adaptation_plan: "Treść szablonu.",
+    is_ai_generated: false,
+    generation_source: "template_fallback",
+    disclaimer: "Plan wygenerowano na podstawie szablonu.",
+  });
+  assert.equal(result.is_ai_generated, false);
+  assert.equal(result.generation_source, "template_fallback");
+});
+
+test("brak metadanych nie jest wynikiem AI", (t) => {
+  const api = apiFor(t);
+  for (const extra of [{}, { is_ai_generated: null }, { generation_source: null, disclaimer: null }]) {
+    const result = api.parseAdaptResponse({
+      innovation_title: "Innowacja", adaptation_plan: "Treść planu.", ...extra,
+    });
+    assert.equal(result.is_ai_generated, null, "brak metadanej musi dać null, nie true");
+    assert.notEqual(result.is_ai_generated, true);
+  }
+  const pusty = api.parseAdaptResponse({ innovation_title: "I", adaptation_plan: "Treść." });
+  assert.equal(pusty.generation_source, "");
+  assert.equal(pusty.disclaimer, "");
+});
+
+test("niepoprawne typy metadanych planu odrzucają odpowiedź", (t) => {
+  const api = apiFor(t);
+  const base = { innovation_title: "Innowacja", adaptation_plan: "Treść planu." };
+  for (const extra of [
+    { is_ai_generated: "true" },
+    { is_ai_generated: 1 },
+    { generation_source: 7 },
+    { disclaimer: ["tekst"] },
+  ]) {
+    assert.throws(() => api.parseAdaptResponse({ ...base, ...extra }), /adaptacji/i, JSON.stringify(extra));
+  }
+  assert.throws(() => api.parseAdaptResponse({ innovation_title: "I", adaptation_plan: "   " }), /adaptacji/i);
+  assert.throws(() => api.parseAdaptResponse(null), /adaptacji/i);
 });

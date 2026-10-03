@@ -176,6 +176,43 @@ export async function matchInnovations(problemDescription: string): Promise<Back
 export interface AdaptResponse {
   innovation_title: string;
   adaptation_plan: string;
+  /**
+   * null oznacza, że backend nie podał metadanej. Brak metadanych nie jest
+   * wynikiem AI — interfejs nie może wtedy twierdzić, że plan wygenerował model.
+   */
+  is_ai_generated: boolean | null;
+  /** 'gemini' | 'openai' | 'template_fallback' lub inna wartość backendu; "" gdy brak. */
+  generation_source: string;
+  /** Zastrzeżenie backendu; "" gdy brak. */
+  disclaimer: string;
+}
+
+function optionalPlanText(value: unknown, field: string): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "string") throw new Error(`Niepoprawne pole planu adaptacji: ${field}.`);
+  return value.trim();
+}
+
+/** Zachowuje metadane AdaptResponse; nie uzupełnia ich domyślnymi wartościami. */
+export function parseAdaptResponse(value: unknown): AdaptResponse {
+  if (
+    typeof value !== "object" || value === null || Array.isArray(value) ||
+    !("innovation_title" in value) || typeof value.innovation_title !== "string" ||
+    !("adaptation_plan" in value) || typeof value.adaptation_plan !== "string" ||
+    !value.adaptation_plan.trim()
+  ) throw new Error("Otrzymaliśmy niepoprawny plan adaptacji.");
+  const row = value as Record<string, unknown>;
+  const flag = row.is_ai_generated;
+  if (!(flag === undefined || flag === null || typeof flag === "boolean")) {
+    throw new Error("Niepoprawne pole planu adaptacji: is_ai_generated.");
+  }
+  return {
+    innovation_title: value.innovation_title,
+    adaptation_plan: value.adaptation_plan,
+    is_ai_generated: flag === undefined || flag === null ? null : flag,
+    generation_source: optionalPlanText(row.generation_source, "generation_source"),
+    disclaimer: optionalPlanText(row.disclaimer, "disclaimer"),
+  };
 }
 
 export async function adaptInnovation(
@@ -208,13 +245,7 @@ export async function adaptInnovation(
     });
     if (!response.ok) throw new Error("Nie udało się wygenerować planu. Spróbuj ponownie za chwilę.");
     const data: unknown = await response.json();
-    if (
-      typeof data !== "object" || data === null ||
-      !("innovation_title" in data) || typeof data.innovation_title !== "string" ||
-      !("adaptation_plan" in data) || typeof data.adaptation_plan !== "string" ||
-      !data.adaptation_plan.trim()
-    ) throw new Error("Otrzymaliśmy niepoprawny plan adaptacji.");
-    return { innovation_title: data.innovation_title, adaptation_plan: data.adaptation_plan };
+    return parseAdaptResponse(data);
   } catch (error) {
     if (signal?.aborted) throw error;
     if (timedOut) throw new Error("Generowanie planu trwało zbyt długo. Spróbuj ponownie.");
