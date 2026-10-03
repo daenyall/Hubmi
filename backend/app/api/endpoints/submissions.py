@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -10,22 +11,12 @@ from app.models.schemas import (
     MessageCreate,
     MessageItemResponse,
 )
+from app.utils.helpers import to_dict_list, to_dict
+from app.utils.sanitize import sanitize_text, sanitize_optional, is_valid_uuid, safe_error_message
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/submissions", tags=["Submissions"])
-
-
-def _to_dict_list(data: Any) -> List[Dict[str, Any]]:
-    if isinstance(data, list):
-        return [item for item in data if isinstance(item, dict)]
-    return []
-
-
-def _to_dict(data: Any) -> Dict[str, Any]:
-    if isinstance(data, dict):
-        return data
-    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
-        return data[0]
-    return {}
 
 
 @router.get("/my", response_model=List[SubmissionResponse])
@@ -56,7 +47,7 @@ async def get_my_submissions(
             query = query.eq("user_id", user.user_id)
 
         res = query.order("created_at", desc=True).execute()
-        rows = _to_dict_list(res.data)
+        rows = to_dict_list(res.data)
 
         return [
             SubmissionResponse(
@@ -81,9 +72,10 @@ async def get_my_submissions(
             for r in rows
         ]
     except Exception as e:
+        logger.error("Błąd odczytu zgłoszeń: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Błąd odczytu zgłoszeń: {str(e)}",
+            detail=safe_error_message("odczyt zgłoszeń"),
         )
 
 
@@ -110,14 +102,14 @@ async def create_submission(
     row_data: Dict[str, Any] = {
         "id": sub_id,
         "user_id": user.user_id,
-        "title": payload.title.strip(),
-        "problem_description": payload.problem_description.strip(),
-        "solution_description": payload.solution_description.strip() if payload.solution_description else "",
-        "target_group": payload.target_group.strip() if payload.target_group else "Wszyscy",
+        "title": sanitize_text(payload.title.strip()),
+        "problem_description": sanitize_text(payload.problem_description.strip()),
+        "solution_description": sanitize_text(payload.solution_description.strip()) if payload.solution_description else "",
+        "target_group": sanitize_text(payload.target_group.strip()) if payload.target_group else "Wszyscy",
         "implementation_stage": payload.implementation_stage,
-        "institution_name": payload.institution_name.strip() if payload.institution_name else None,
+        "institution_name": sanitize_optional(payload.institution_name),
         "applicant_type": payload.applicant_type,
-        "applicant_name": payload.applicant_name,
+        "applicant_name": sanitize_optional(payload.applicant_name),
         "applicant_email": payload.applicant_email,
         "matched_innovation_id": payload.matched_innovation_id,
         "status": "nowe",
@@ -127,7 +119,7 @@ async def create_submission(
 
     try:
         res = supabase.table("submissions").insert(row_data).execute()
-        inserted_list = _to_dict_list(res.data)
+        inserted_list = to_dict_list(res.data)
         if not inserted_list:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -154,9 +146,10 @@ async def create_submission(
             updated_at=str(inserted.get("updated_at")) if inserted.get("updated_at") is not None else None,
         )
     except Exception as e:
+        logger.error("Błąd zapisu zgłoszenia: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Błąd zapisu zgłoszenia: {str(e)}",
+            detail=safe_error_message("zapis zgłoszenia"),
         )
 
 
@@ -185,7 +178,7 @@ async def get_submission_messages(
 
     # Weryfikacja uprawnień do tego zgłoszenia
     sub_res = supabase.table("submissions").select("id, user_id").eq("id", submission_id).execute()
-    sub_list = _to_dict_list(sub_res.data)
+    sub_list = to_dict_list(sub_res.data)
     if not sub_list:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -209,7 +202,7 @@ async def get_submission_messages(
             .order("created_at", desc=False)
             .execute()
         )
-        rows = _to_dict_list(msg_res.data)
+        rows = to_dict_list(msg_res.data)
         return [
             MessageItemResponse(
                 id=str(m.get("id", "")),
@@ -223,9 +216,10 @@ async def get_submission_messages(
             for m in rows
         ]
     except Exception as e:
+        logger.error("Błąd odczytu wiadomości: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Błąd odczytu wiadomości: {str(e)}",
+            detail=safe_error_message("odczyt wiadomości"),
         )
 
 
@@ -254,7 +248,7 @@ async def post_submission_message(
 
     # Weryfikacja powiązanego zgłoszenia
     sub_res = supabase.table("submissions").select("id, user_id").eq("id", submission_id).execute()
-    sub_list = _to_dict_list(sub_res.data)
+    sub_list = to_dict_list(sub_res.data)
     if not sub_list:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -282,14 +276,14 @@ async def post_submission_message(
         "sender_id": sender_id,
         "sender_role": sender_role,
         "sender_name": sender_name,
-        "message": payload.message.strip(),
+        "message": sanitize_text(payload.message.strip()),
     }
     if sender_id:
         row["sender_id"] = sender_id
 
     try:
         res = supabase.table("submission_messages").insert(row).execute()
-        inserted_list = _to_dict_list(res.data)
+        inserted_list = to_dict_list(res.data)
         if not inserted_list:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -306,7 +300,8 @@ async def post_submission_message(
             created_at=str(inserted.get("created_at")) if inserted.get("created_at") is not None else None,
         )
     except Exception as e:
+        logger.error("Błąd zapisu wiadomości: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Błąd zapisu wiadomości: {str(e)}",
+            detail=safe_error_message("zapis wiadomości"),
         )

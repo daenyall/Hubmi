@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -16,22 +17,13 @@ from app.models.schemas import (
 )
 from app.services.ai import create_embedding
 from app.services.notifications import notify_status_change, get_recent_events
+from app.utils.helpers import to_dict_list, to_dict
+from app.utils.sanitize import sanitize_text, sanitize_optional, is_valid_innovation_id, safe_error_message
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["Admin ROPS"])
 
 
-def _to_dict_list(data: Any) -> List[Dict[str, Any]]:
-    if isinstance(data, list):
-        return [item for item in data if isinstance(item, dict)]
-    return []
-
-
-def _to_dict(data: Any) -> Dict[str, Any]:
-    if isinstance(data, dict):
-        return data
-    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
-        return data[0]
-    return {}
 
 
 class WebhookTestRequest(BaseModel):
@@ -68,7 +60,7 @@ async def list_admin_submissions(
 
         query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
         res = query.execute()
-        rows = _to_dict_list(res.data)
+        rows = to_dict_list(res.data)
 
         if search and search.strip():
             s_lower = search.strip().lower()
@@ -106,9 +98,10 @@ async def list_admin_submissions(
         return results
 
     except Exception as e:
+        logger.error("Błąd pobierania zgłoszeń admin: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Błąd podczas pobierania zgłoszeń: {str(e)}",
+            detail=safe_error_message("lista zgłoszeń"),
         )
 
 
@@ -127,7 +120,7 @@ async def get_admin_submission_detail(
 
     try:
         res = supabase.table("submissions").select("*").eq("id", submission_id).single().execute()
-        r = _to_dict(res.data)
+        r = to_dict(res.data)
         if not r:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -155,9 +148,10 @@ async def get_admin_submission_detail(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Błąd odczytu zgłoszenia %s: %s", submission_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Błąd odczytu zgłoszenia: {str(e)}",
+            detail=safe_error_message("odczyt zgłoszenia"),
         )
 
 
@@ -182,7 +176,7 @@ async def update_submission_status(
     try:
         # 1. Pobranie aktualnego rekordu
         current_res = supabase.table("submissions").select("*").eq("id", submission_id).execute()
-        current_list = _to_dict_list(current_res.data)
+        current_list = to_dict_list(current_res.data)
         if not current_list:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -204,7 +198,7 @@ async def update_submission_status(
 
         # 3. Zapis w Supabase
         update_res = supabase.table("submissions").update(update_data).eq("id", submission_id).execute()
-        updated_list = _to_dict_list(update_res.data)
+        updated_list = to_dict_list(update_res.data)
         if not updated_list:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -247,9 +241,10 @@ async def update_submission_status(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Błąd aktualizacji statusu %s: %s", submission_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Błąd aktualizacji statusu: {str(e)}",
+            detail=safe_error_message("aktualizacja statusu"),
         )
 
 
@@ -259,7 +254,7 @@ async def list_audit_events(
     admin: UserSession = Depends(require_rops_admin),
 ):
     """Pobiera historię zdarzeń audytowych zmian statusu dla panelu administratora."""
-    events = _to_dict_list(get_recent_events(limit=limit))
+    events = to_dict_list(get_recent_events(limit=limit))
     return [
         SubmissionEventResponse(
             id=str(e.get("id", "")),
@@ -324,7 +319,7 @@ async def list_admin_innovations(
             query = query.eq("status", status_filter)
 
         res = query.range(offset, offset + limit - 1).execute()
-        rows = _to_dict_list(res.data)
+        rows = to_dict_list(res.data)
 
         return [
             MatchItem(
@@ -341,7 +336,8 @@ async def list_admin_innovations(
             for r in rows
         ]
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Błąd bazy danych: {str(e)}")
+        logger.error("Błąd pobierania innowacji admin: %s", e)
+        raise HTTPException(status_code=502, detail=safe_error_message("lista innowacji"))
 
 
 @router.post("/innovations", response_model=MatchItem, status_code=status.HTTP_201_CREATED)
@@ -362,29 +358,29 @@ async def create_admin_innovation(
 
     # Wyliczenie embeddingu semantycznego
     semantic_text = (
-        f"{payload.title}. Kategoria: {payload.category}. "
-        f"Grupa docelowa: {payload.target_group}. "
-        f"Dlaczego warto: {payload.why_relevant or ''}. "
-        f"Opis: {payload.description}"
+        f"{sanitize_text(payload.title)}. Kategoria: {sanitize_text(payload.category)}. "
+        f"Grupa docelowa: {sanitize_text(payload.target_group)}. "
+        f"Dlaczego warto: {sanitize_text(payload.why_relevant or '')}. "
+        f"Opis: {sanitize_text(payload.description)}"
     )
     embedding = create_embedding(semantic_text)
 
     row = {
         "id": inv_id,
-        "title": payload.title.strip(),
-        "description": payload.description.strip(),
-        "target_group": payload.target_group.strip(),
-        "category": payload.category.strip(),
-        "why_relevant": payload.why_relevant.strip() if payload.why_relevant else None,
+        "title": sanitize_text(payload.title.strip()),
+        "description": sanitize_text(payload.description.strip()),
+        "target_group": sanitize_text(payload.target_group.strip()),
+        "category": sanitize_text(payload.category.strip()),
+        "why_relevant": sanitize_optional(payload.why_relevant),
         "source_url": payload.source_url.strip() if payload.source_url else None,
         "status": payload.status.strip(),
-        "author_or_institution": payload.author_or_institution or "ROPS Kraków",
+        "author_or_institution": sanitize_optional(payload.author_or_institution) or "ROPS Kraków",
         "embedding": embedding,
     }
 
     try:
         res = supabase.table("innovations").insert(row).execute()
-        inserted_list = _to_dict_list(res.data)
+        inserted_list = to_dict_list(res.data)
         if not inserted_list:
             raise HTTPException(status_code=500, detail="Błąd podczas tworzenia rekordu innowacji.")
         inserted = inserted_list[0]
@@ -400,7 +396,8 @@ async def create_admin_innovation(
             status=str(inserted.get("status", payload.status)),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Błąd zapisu innowacji: {str(e)}")
+        logger.error("Błąd zapisu innowacji: %s", e)
+        raise HTTPException(status_code=500, detail=safe_error_message("zapis innowacji"))
 
 @router.get("/innovations/{innovation_id}", response_model=MatchItem)
 async def get_admin_innovation_by_id(
@@ -415,7 +412,7 @@ async def get_admin_innovation_by_id(
         raise HTTPException(status_code=503, detail="Baza danych Supabase jest niedostępna.")
 
     curr_res = supabase.table("innovations").select("*").eq("id", innovation_id).execute()
-    curr_list = _to_dict_list(curr_res.data)
+    curr_list = to_dict_list(curr_res.data)
     if not curr_list:
         raise HTTPException(status_code=404, detail="Innowacja nie została odnaleziona.")
     curr = curr_list[0]
@@ -448,7 +445,7 @@ async def update_admin_innovation(
 
     # Pobranie aktualnego rekordu
     curr_res = supabase.table("innovations").select("*").eq("id", innovation_id).execute()
-    curr_list = _to_dict_list(curr_res.data)
+    curr_list = to_dict_list(curr_res.data)
     if not curr_list:
         raise HTTPException(status_code=404, detail="Innowacja nie została odnaleziona.")
     curr = curr_list[0]
@@ -483,7 +480,7 @@ async def update_admin_innovation(
 
     try:
         res = supabase.table("innovations").update(update_data).eq("id", innovation_id).execute()
-        updated_list = _to_dict_list(res.data)
+        updated_list = to_dict_list(res.data)
         if not updated_list:
             raise HTTPException(status_code=500, detail="Błąd aktualizacji rekordu innowacji.")
         updated = updated_list[0]
@@ -499,7 +496,8 @@ async def update_admin_innovation(
             status=str(updated.get("status", "sprawdzone")),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Błąd aktualizacji innowacji: {str(e)}")
+        logger.error("Błąd aktualizacji innowacji %s: %s", innovation_id, e)
+        raise HTTPException(status_code=500, detail=safe_error_message("aktualizacja innowacji"))
 
 
 @router.post("/innovations/{innovation_id}/publish", response_model=MatchItem)
@@ -516,7 +514,7 @@ async def publish_admin_innovation(
 
     try:
         res = supabase.table("innovations").update({"status": "sprawdzone"}).eq("id", innovation_id).execute()
-        updated_list = _to_dict_list(res.data)
+        updated_list = to_dict_list(res.data)
         if not updated_list:
             raise HTTPException(status_code=404, detail="Innowacja nie została odnaleziona.")
         updated = updated_list[0]
@@ -532,5 +530,6 @@ async def publish_admin_innovation(
             status="sprawdzone",
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Błąd publikacji innowacji: {str(e)}")
+        logger.error("Błąd publikacji innowacji %s: %s", innovation_id, e)
+        raise HTTPException(status_code=500, detail=safe_error_message("publikacja innowacji"))
 
