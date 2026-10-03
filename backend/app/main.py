@@ -1,13 +1,13 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.api.router import api_router
 
-# Rate limiter: 30 req/min domyślnie, 10 req/min dla endpointów AI
+# Rate limiter: 60 req/min domyślnie
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 app = FastAPI(
@@ -18,9 +18,17 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Rate limiting middleware
+# Rate limiting middleware i bezpieczny handler błędu 429
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: Exception) -> JSONResponse:
+    detail = getattr(exc, "detail", "Zbyt wiele zapytań")
+    return JSONResponse(
+        status_code=429,
+        content={"detail": f"Przekroczono limit zapytań: {detail}. Spróbuj ponownie za chwilę."},
+    )
 
 # CORS configuration
 app.add_middleware(

@@ -118,3 +118,22 @@ class TestHardeningAndSanitization:
         data = response.json()
         assert "adaptation_plan" in data
         assert len(data["adaptation_plan"]) > 0
+
+    def test_rate_limit_exceeded_handler_returns_json_429(self):
+        """Handler przekroczenia limitu zapytań zwraca status 429 w formacie JSON."""
+        from unittest.mock import MagicMock
+        from slowapi.errors import RateLimitExceeded
+        from starlette.requests import Request
+        import asyncio
+
+        scope = {"type": "http", "method": "GET", "path": "/api/health", "headers": []}
+        req = Request(scope)
+        exc = MagicMock(spec=RateLimitExceeded)
+        exc.detail = "60 per 1 minute"
+
+        handler = app.exception_handlers.get(RateLimitExceeded)
+        assert handler is not None
+        resp = asyncio.run(handler(req, exc))
+        assert resp.status_code == 429
+        assert "application/json" in resp.headers["content-type"]
+        assert "Przekroczono limit" in resp.body.decode("utf-8")
