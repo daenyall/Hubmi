@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, CircleAlert, FileText, LoaderCircle, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { MatchCard } from "@/components/match-card";
 import { MatchApiError, matchProblem, USE_MOCK_MATCHING } from "@/lib/api";
-import type { MatchResponse } from "@/lib/matching";
+import { MAX_PROBLEM_LENGTH, MIN_PROBLEM_LENGTH, type MatchResponse } from "@/lib/matching";
 
 type SearchState =
   | { status: "idle" }
@@ -24,6 +26,54 @@ const examples = [
     text: "Osoby z niepełnosprawnościami i ich opiekunowie mają trudność z dotarciem do lokalnych usług. Chcemy ograniczyć bariery i zapewnić dostępne wsparcie blisko domu.",
   },
 ];
+
+const LINK = "inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4";
+
+/**
+ * Brak wyników obejmuje też opis odrzucony przez walidator backendu: w obu przypadkach
+ * backend odpowiada 200 z no_match_advice. Pokazujemy jego poradę, nie własną interpretację.
+ */
+function NoMatches({ response }: { response: MatchResponse }) {
+  return (
+    <div className="space-y-6 rounded-2xl border border-dashed border-input bg-card/60 p-[24px]">
+      <div className="flex items-start gap-3">
+        <Search className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden="true" />
+        <div className="min-w-0 space-y-2">
+          <p className="text-base font-semibold">Nie znaleziono dopasowanych innowacji</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {response.advice || "Usługa nie przysłała dodatkowej porady. Nazwij potrzebę krócej i konkretniej, a potem spróbuj ponownie."}
+          </p>
+        </div>
+      </div>
+
+      {response.categories.length > 0 && (
+        <div className="space-y-2">
+          <h3 id="suggested-categories" className="text-sm font-semibold">Kategorie tematyczne ROPS</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">Podpowiedzi do przeformułowania opisu. Nie są filtrem tego wyszukiwania.</p>
+          <ul aria-labelledby="suggested-categories" className="flex flex-wrap gap-2">
+            {response.categories.map((name) => (
+              <li key={name}><Badge variant="outline" className="h-auto min-h-7 max-w-full whitespace-normal">{name}</Badge></li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <h3 id="next-steps" className="text-sm font-semibold">Co możesz zrobić dalej</h3>
+        <ul aria-labelledby="next-steps" className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+          <li>Nazwij potrzebę wprost i krótko, na przykład „samotność seniorów na wsi”.</li>
+          <li><Link href="/baza-wiedzy" className={LINK}>Przejrzyj Zasobnik Wiedzy</Link> i zawęź go filtrem kategorii.</li>
+          {response.can_submit_challenge && (
+            <li>
+              <Link href="/kreator" className={LINK}>Opisz potrzebę jako fiszkę dla ROPS</Link>
+              {" "}— powiązanie z innowacją jest opcjonalne, więc możesz zgłosić sam problem.
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 export function MatchingForm() {
   const [description, setDescription] = useState("");
@@ -59,8 +109,13 @@ export function MatchingForm() {
       textarea.current?.focus();
       return;
     }
-    if (query.length < 3) {
-      setState({ status: "error", message: "Opis potrzeby musi zawierać co najmniej 3 znaki.", validation: true });
+    if (query.length < MIN_PROBLEM_LENGTH) {
+      setState({ status: "error", message: `Opis potrzeby musi zawierać co najmniej ${MIN_PROBLEM_LENGTH} znaki.`, validation: true });
+      textarea.current?.focus();
+      return;
+    }
+    if (query.length > MAX_PROBLEM_LENGTH) {
+      setState({ status: "error", message: `Opis może mieć maksymalnie ${MAX_PROBLEM_LENGTH} znaków. Masz ich ${query.length}. Skróć opis i spróbuj ponownie.`, validation: true });
       textarea.current?.focus();
       return;
     }
@@ -111,7 +166,7 @@ export function MatchingForm() {
                   Opisz problem lub potrzebę <span className="font-normal text-muted-foreground">(wymagane)</span>
                 </label>
                 <p id="problem-hint" className="text-sm leading-relaxed text-muted-foreground">
-                  Kogo dotyczy problem? Co chcesz zmienić? W jakim otoczeniu?
+                  Kogo dotyczy problem? Co chcesz zmienić? Opisz to zwięźle i konkretnie, od {MIN_PROBLEM_LENGTH} do {MAX_PROBLEM_LENGTH} znaków.
                 </p>
                 <textarea
                   ref={textarea}
@@ -124,9 +179,11 @@ export function MatchingForm() {
                   readOnly={loading}
                   aria-invalid={validationError || undefined}
                   aria-describedby={`problem-hint${validationError ? " problem-error" : ""}`}
+                  maxLength={MAX_PROBLEM_LENGTH}
                   placeholder={`Np. ${examples[0].text}`}
                   className="block min-h-44 w-full resize-y rounded-xl border border-input bg-background p-[16px] text-base leading-relaxed text-foreground placeholder:text-muted-foreground read-only:opacity-75 aria-invalid:border-destructive"
                 />
+                <p className="text-sm text-muted-foreground">Wykorzystano {description.length} z {MAX_PROBLEM_LENGTH} znaków.</p>
               </div>
 
               {state.status === "error" && (
@@ -157,7 +214,7 @@ export function MatchingForm() {
 
               <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
                 <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                  Im więcej kontekstu podasz, tym łatwiej znaleźć przydatne rozwiązania.
+                  Nazwij potrzebę wprost, na przykład „samotność seniorów na wsi”.
                 </p>
                 <Button type="submit" disabled={loading} className="h-auto min-h-12 w-full whitespace-normal rounded-xl px-[24px] py-3 text-base sm:w-auto [&_svg]:size-[20px]">
                   {loading ? (
@@ -193,14 +250,16 @@ export function MatchingForm() {
               <li key={item.id} className="min-w-0"><MatchCard item={item} demo={USE_MOCK_MATCHING} /></li>
             ))}
           </ul>
+        ) : state.status === "success" ? (
+          <NoMatches response={state.response} />
         ) : (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-input bg-card/60 px-6 py-10 text-center">
             <Search className="size-7 text-primary" aria-hidden="true" />
             <p className="text-base font-semibold">
-              {loading ? "Sprawdzamy dopasowania" : state.status === "success" ? "Nie znaleziono dopasowanych innowacji" : state.status === "error" ? "Wyszukiwanie nie zostało zakończone" : "Tu pojawią się propozycje dla Ciebie"}
+              {loading ? "Sprawdzamy dopasowania" : state.status === "error" ? "Wyszukiwanie nie zostało zakończone" : "Tu pojawią się propozycje dla Ciebie"}
             </p>
             <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
-              {loading ? "To może potrwać chwilę. Wyniki pokażemy po zakończeniu wyszukiwania." : state.status === "success" ? "Doprecyzuj opis: dodaj informacje o odbiorcach, miejscu i rodzaju potrzebnego wsparcia, a następnie spróbuj ponownie." : state.status === "error" ? "Twój opis pozostał w formularzu. Możesz spróbować ponownie." : "Opisz potrzebę i wybierz „Znajdź rozwiązania”, aby zobaczyć innowacje oraz powody ich dopasowania."}
+              {loading ? "To może potrwać chwilę. Wyniki pokażemy po zakończeniu wyszukiwania." : state.status === "error" ? "Twój opis pozostał w formularzu. Możesz spróbować ponownie." : "Opisz potrzebę i wybierz „Znajdź rozwiązania”, aby zobaczyć innowacje oraz powody ich dopasowania."}
             </p>
           </div>
         )}

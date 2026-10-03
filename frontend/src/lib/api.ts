@@ -1,4 +1,4 @@
-import { parseMatchResponse, type BackendMatchResponse, type MatchRequest, type MatchResponse as MatchingResult } from "./matching";
+import { parseMatchResponse, MAX_PROBLEM_LENGTH, MIN_PROBLEM_LENGTH, type BackendMatchResponse, type MatchRequest, type MatchResponse as MatchingResult } from "./matching";
 export type { BackendMatchItem as MatchItem, BackendMatchResponse as MatchResponse } from "./matching";
 
 const BACKEND_URL =
@@ -9,6 +9,18 @@ export const USE_MOCK_MATCHING =
 export const MATCH_TIMEOUT_MS = 20_000;
 
 type MatchErrorKind = "validation" | "network" | "api" | "response" | "timeout";
+
+/** FastAPI zwraca detail jako tekst (400) lub listę pól Pydantic (422); listy nie pokazujemy. */
+async function describedValidationError(response: Response): Promise<string> {
+  const fallback = `Usługa nie przyjęła tego opisu. Podaj od ${MIN_PROBLEM_LENGTH} do ${MAX_PROBLEM_LENGTH} znaków opisujących potrzebę.`;
+  try {
+    const data: unknown = await response.json();
+    if (typeof data === "object" && data !== null && "detail" in data && typeof data.detail === "string" && data.detail.trim()) {
+      return data.detail.trim();
+    }
+  } catch { /* Brak czytelnego detail nie zmienia rodzaju błędu. */ }
+  return fallback;
+}
 
 export class MatchApiError extends Error {
   constructor(
@@ -31,8 +43,13 @@ async function requestMatches(
     throw new MatchApiError("validation", "Opisz problem lub potrzebę, aby znaleźć rozwiązania.");
   }
 
-  if (problemDescription.length < 3) {
-    throw new MatchApiError("validation", "Opis potrzeby musi zawierać co najmniej 3 znaki.");
+  if (problemDescription.length < MIN_PROBLEM_LENGTH) {
+    throw new MatchApiError("validation", `Opis potrzeby musi zawierać co najmniej ${MIN_PROBLEM_LENGTH} znaki.`);
+  }
+
+  // Limit backendu (MatchRequest.max_length); bez tego długi opis kończy się surowym 422.
+  if (problemDescription.length > MAX_PROBLEM_LENGTH) {
+    throw new MatchApiError("validation", `Opis może mieć maksymalnie ${MAX_PROBLEM_LENGTH} znaków. Skróć opis i spróbuj ponownie.`);
   }
 
   const controller = new AbortController();
@@ -63,6 +80,10 @@ async function requestMatches(
     });
 
     if (!response.ok) {
+      // 400 i 422 to odrzucenie opisu przez kontrakt, nie awaria usługi.
+      if (response.status === 400 || response.status === 422) {
+        throw new MatchApiError("validation", await describedValidationError(response), response.status);
+      }
       throw new MatchApiError(
         "api",
         response.status === 429
