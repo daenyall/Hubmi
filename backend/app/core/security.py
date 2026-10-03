@@ -75,8 +75,8 @@ def get_current_user(
                             detail="Konto anonimowe nie posiada uprawnień do operacji autoryzowanych.",
                         )
 
-                    user_id = str(u.id)
-                    email = str(u.email or "")
+                    user_id = u.id
+                    email = u.email or ""
                     app_meta = u.app_metadata or {}
 
                     # Rola ROPS musi pochodzić wyłącznie z zaufanego app_metadata serwerowego
