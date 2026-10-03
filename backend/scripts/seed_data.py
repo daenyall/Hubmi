@@ -128,6 +128,8 @@ def seed_innovations(json_path: Optional[str] = None, dry_run: bool = False, ver
             else:
                 sys.stdout.write(".")
                 sys.stdout.flush()
+            time.sleep(1.0)
+
         except Exception as e:
             fail_count += 1
             print(f"\n  ✗ Błąd podczas zapisu {inv_id}: {e}")

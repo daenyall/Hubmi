@@ -39,22 +39,21 @@ def calculate_cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float
 
 
 def _get_gemini_embedding(text: str) -> Optional[List[float]]:
-    """Pobiera embedding z Google Gemini (text-embedding-004) i normalizuje do 1536D."""
+    """Pobiera embedding z Google Gemini (gemini-embedding-2) i normalizuje do 1536D."""
     if not settings.GEMINI_API_KEY:
         return None
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={settings.GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key={settings.GEMINI_API_KEY}"
         payload = {
-            "model": "models/text-embedding-004",
+            "model": "models/gemini-embedding-2",
             "content": {"parts": [{"text": text[:2000]}]},
+            "outputDimensionality": 1536,
         }
         res = requests.post(url, json=payload, timeout=10)
         if res.status_code == 200:
             data = res.json()
             values = data.get("embedding", {}).get("values", [])
             if values:
-                # text-embedding-004 zwraca 768 wartości. Dopełniamy wektor zerami do 1536D,
-                # co matematycznie w 100% zachowuje odległość cosinusową (A·B / ||A||·||B||).
                 if len(values) < 1536:
                     values = values + [0.0] * (1536 - len(values))
                 norm = math.sqrt(sum(x * x for x in values))
@@ -66,6 +65,7 @@ def _get_gemini_embedding(text: str) -> Optional[List[float]]:
     except Exception as e:
         print(f"Gemini embedding error: {e}")
     return None
+
 
 
 def _fallback_deterministic_embedding(text: str, dim: int = 1536) -> List[float]:
@@ -150,22 +150,25 @@ Przygotuj zwięzły, konkretny plan wdrożenia w markdown:
 4. Potencjalne źródła dofinansowania (np. Małopolski ROPS, FERS, fundusze sołeckie)
 5. Rekomendacja zminimalizowania barier dla seniorów i osób z niepełnosprawnościami (WCAG)."""
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1000},
-        }
-        res = requests.post(url, json=payload, timeout=15)
-        if res.status_code == 200:
-            data = res.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                text_part = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                if text_part:
-                    return text_part
+        for model_name in ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"]:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2000},
+            }
+            res = requests.post(url, json=payload, timeout=15)
+            if res.status_code == 200:
+                data = res.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    full_text = "".join(p.get("text", "") for p in parts)
+                    if full_text.strip():
+                        return full_text.strip()
     except Exception as e:
         print(f"Gemini completion error: {e}")
     return None
+
 
 
 def generate_adaptation_plan(innovation_title: str, innovation_desc: str, context: str) -> str:
