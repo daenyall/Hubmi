@@ -1,6 +1,5 @@
 import os
-from typing import List, Union
-from pydantic import AnyHttpUrl
+from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
