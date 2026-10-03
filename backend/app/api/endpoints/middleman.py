@@ -18,13 +18,20 @@ async def adapt_innovation(request: AdaptRequest):
             detail="Podaj szerszy kontekst gminy/instytucji (min. 5 znaków)."
         )
 
-    plan = generate_adaptation_plan(
+    plan_result = generate_adaptation_plan(
         innovation_title=request.innovation_title,
         innovation_desc=request.innovation_description or "",
         context=request.municipality_context,
+        municipality_type=request.municipality_type,
+        budget_range=request.budget_range,
+        time_horizon=request.time_horizon,
+        key_partners=request.key_partners,
     )
 
     return AdaptResponse(
         innovation_title=request.innovation_title,
-        adaptation_plan=plan,
+        adaptation_plan=plan_result["adaptation_plan"],
+        estimated_budget_pln=plan_result.get("estimated_budget_pln"),
+        recommended_grants=plan_result.get("recommended_grants"),
+        key_kpis=plan_result.get("key_kpis"),
     )

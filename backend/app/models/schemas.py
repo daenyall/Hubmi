@@ -77,11 +77,18 @@ class AdaptRequest(BaseModel):
     innovation_title: str
     innovation_description: Optional[str] = None
     municipality_context: str = Field(..., description="Zasoby, budżet lub specyfika zgłaszającej się gminy/instytucji")
+    municipality_type: Optional[str] = Field(default=None, description="Typ samorządu: 'wiejska', 'miejsko-wiejska', 'miejska', 'powiat'")
+    budget_range: Optional[str] = Field(default=None, description="Dostępny budżet na wdrożenie np. '< 20k PLN', '20-50k PLN', '> 50k PLN'")
+    time_horizon: Optional[str] = Field(default=None, description="Horyzont czasowy wdrożenia np. '3 miesiące', '6 miesięcy', '12 miesięcy'")
+    key_partners: Optional[list[str]] = Field(default=None, description="Lokalni partnerzy: np. ['CUS', 'KGW', 'OSP', 'Parafia', 'OPS']")
 
 
 class AdaptResponse(BaseModel):
     innovation_title: str
     adaptation_plan: str
+    estimated_budget_pln: Optional[str] = Field(default=None, description="Szacunkowy budżet wdrożenia w PLN")
+    recommended_grants: Optional[list[str]] = Field(default=None, description="Rekomendowane źródła finansowania (FERS, PFRON, Fundusze Sołeckie, etc.)")
+    key_kpis: Optional[list[str]] = Field(default=None, description="Kluczowe wskaźniki sukcesu wdrożenia (KPI)")
 
 
 # ==============================================================================
@@ -167,3 +174,91 @@ class NotificationResult(BaseModel):
     webhook_sent: bool
     message: str
     event_id: Optional[str] = None
+
+
+# ==============================================================================
+# MODELE TESTERA INNOWACJI SPOŁECZNYCH W GMINACH (21:00 - 23:30)
+# ==============================================================================
+
+class TestApplicationCreate(BaseModel):
+    innovation_id: str = Field(..., description="ID innowacji społecznej z bazy ROPS")
+    tester_type: str = Field(default="JST", description="Typ testera: 'JST', 'CUS', 'NGO', 'Mieszkaniec', 'Inna'")
+    institution_name: str = Field(..., min_length=2, max_length=255, description="Nazwa instytucji testującej (np. 'Gmina Wieliczka', 'CUS Tarnów')")
+    contact_person: str = Field(..., min_length=2, max_length=255, description="Imię i nazwisko koordynatora testu")
+    contact_email: str = Field(..., description="Email kontaktowy")
+    contact_phone: Optional[str] = Field(default=None, description="Telefon kontaktowy")
+    testing_scope: str = Field(default="pilotaz_3m", description="Zakres testu: 'warsztaty', 'pilotaz_1m', 'pilotaz_3m', 'wdrozenie_pelne'")
+    target_audience_count: int = Field(default=20, ge=1, description="Szacunkowa liczba uczestników/odbiorców")
+    notes: Optional[str] = Field(default=None, description="Dodatkowe uwagi lub specyfika grupy docelowej")
+
+
+class TestApplicationResponse(BaseModel):
+    id: str
+    innovation_id: str
+    tester_type: str = "JST"
+    institution_name: str
+    contact_person: str
+    contact_email: str
+    contact_phone: Optional[str] = None
+    testing_scope: str = "pilotaz_3m"
+    target_audience_count: int = 20
+    status: str = "nowe"
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class TestApplicationStatusUpdate(BaseModel):
+    status: str = Field(..., description="Nowy status: 'nowe', 'zaakceptowane', 'w_trakcie', 'zakonczone', 'odrzucone'")
+    notes: Optional[str] = Field(default=None, description="Notatka urzędowa ROPS")
+
+
+class TestFeedbackCreate(BaseModel):
+    innovation_id: str = Field(..., description="ID innowacji, której dotyczy ocena")
+    application_id: Optional[str] = Field(default=None, description="Opcjonalny ID powiązanego zgłoszenia testowego")
+    rating_usability: int = Field(..., ge=1, le=5, description="Łatwość wdrożenia (skala 1-5)")
+    rating_effectiveness: int = Field(..., ge=1, le=5, description="Skuteczność dla odbiorców (skala 1-5)")
+    rating_accessibility: int = Field(..., ge=1, le=5, description="Dostępność WCAG / OzN / seniorzy (skala 1-5)")
+    pros: Optional[str] = Field(default=None, description="Mocne strony i zalety rozwiązania")
+    cons_and_barriers: Optional[str] = Field(default=None, description="Bariery i trudności wdrożeniowe")
+    suggested_improvements: Optional[str] = Field(default=None, description="Rekomendacje ulepszeń dla ROPS i innych gmin")
+    would_recommend: bool = Field(default=True, description="Czy gmina poleca to rozwiązanie innym?")
+    author_name: str = Field(..., min_length=2, max_length=255, description="Podpis / stanowisko autora opinii")
+
+
+class TestFeedbackResponse(BaseModel):
+    id: str
+    innovation_id: str
+    application_id: Optional[str] = None
+    rating_usability: int
+    rating_effectiveness: int
+    rating_accessibility: int
+    average_score: float
+    pros: Optional[str] = None
+    cons_and_barriers: Optional[str] = None
+    suggested_improvements: Optional[str] = None
+    would_recommend: bool = True
+    author_name: str
+    created_at: Optional[str] = None
+
+
+class InnovationFeedbackSummary(BaseModel):
+    innovation_id: str
+    total_reviews: int
+    avg_usability: float
+    avg_effectiveness: float
+    avg_accessibility: float
+    overall_rating: float
+    recommendation_percentage: float
+    recent_reviews: list[TestFeedbackResponse] = Field(default_factory=list)
+
+
+class TestingGlobalSummary(BaseModel):
+    total_applications: int
+    active_pilots: int
+    completed_pilots: int
+    total_feedbacks: int
+    overall_avg_rating: float
+    top_rated_innovations: list[Dict[str, Any]] = Field(default_factory=list)
+    applications_by_status: Dict[str, int] = Field(default_factory=dict)
+

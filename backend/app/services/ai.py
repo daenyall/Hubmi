@@ -2,7 +2,7 @@ import hashlib
 import math
 import re
 from functools import lru_cache
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 import requests
 
 from app.core.config import settings
@@ -131,32 +131,146 @@ def create_embedding(text: str) -> List[float]:
     return list(_get_embedding_tuple(clean_text))
 
 
-def _generate_gemini_plan(innovation_title: str, innovation_desc: str, context: str) -> Optional[str]:
-    """Generuje plan adaptacji za pomocą Google Gemini 1.5 Flash."""
+def _build_adaptation_prompt(
+    innovation_title: str,
+    innovation_desc: str,
+    context: str,
+    municipality_type: Optional[str] = None,
+    budget_range: Optional[str] = None,
+    time_horizon: Optional[str] = None,
+    key_partners: Optional[list[str]] = None,
+) -> str:
+    partners_text = ", ".join(key_partners) if key_partners else "CUS / GOPS, Koło Gospodyń Wiejskich (KGW), Ochotnicza Straż Pożarna (OSP), lokalne stowarzyszenia"
+    muni_type_text = municipality_type or "Gmina wiejska / miejsko-wiejska"
+    budget_text = budget_range or "15 000 – 30 000 PLN (faza pilotażowa)"
+    time_text = time_horizon or "3 miesiące (faza pilotażowa)"
+    desc_text = innovation_desc.strip() if innovation_desc and innovation_desc.strip() else "Innowacja społeczna inkubowana w ramach programów ROPS Kraków"
+
+    return f"""Jesteś Głównym Doradcą ds. Skalowania i Adaptacji Innowacji Społecznych w Regionalnym Ośrodku Polityki Społecznej w Krakowie (ROPS Kraków).
+Twoim celem jest przygotowanie profesjonalnego, gotowego do wdrożenia Planu Adaptacji Innowacji Społecznej dla zgłaszającej się instytucji.
+
+DANE WEJŚCIOWE ZGŁOSZENIA:
+- Innowacja: {innovation_title}
+- Opis oryginalny: {desc_text}
+- Kontekst i specyfika gminy/instytucji: {context}
+- Typ samorządu: {muni_type_text}
+- Szacowany budżet: {budget_text}
+- Horyzont czasowy pilotażu: {time_text}
+- Lokalni partnerzy: {partners_text}
+
+WYTYCZNE DLA PLANU ADAPTACJI (zwróć w przejrzystym Markdown):
+1. **Diagnoza i Rola Lokalnych Partnerów**:
+   - Konkretny podział zadań pomiędzy JST/CUS a partnerami lokalnymi (np. OSP jako logistyka/transport seniorów, KGW jako animacja społeczna i warsztaty integracyjne, CUS jako koordynacja usług).
+2. **Harmonogram Wdrożenia (Kamienie Milowe)**:
+   - 3 fazy czasowe (Etap 1: Diagnoza i porozumienia; Etap 2: Warsztaty i pilotaż z grupą docelową; Etap 3: Ewaluacja, feedback i trwałość).
+3. **Szacunkowy Kosztorys Wdrożenia**:
+   - Sporządź czytelną tabelę Markdown:
+     | Pozycja | Zakres / Wydatek | Szacunkowy koszt (PLN) |
+     z sumą końcową odpowiadającą budżetowi {budget_text}.
+4. **Rekomendowane Źródła Finansowania**:
+   - Wskaż konkretne programy: Mikrogranty ROPS Kraków, FERS (Fundusze Europejskie dla Rozwoju Społecznego), PFRON (dostępność i wsparcie OzN), Fundusze Sołeckie, Budżet Obywatelski.
+5. **Standard Dostępności i Włączenia Społecznego (WCAG 2.1 AA / Dostępność architektoniczna)**:
+   - Rekomendacje dla seniorów i osób z niepełnosprawnościami (teksty łatwe do czytania ETR, asystentura, brak barier architektonicznych).
+6. **Kluczowe Wskaźniki Sukcesu (KPI) dla ROPS Kraków**:
+   - 3-5 mierzalnych wskaźników do ewaluacji testu innowacji."""
+
+
+def _build_fallback_adaptation_plan(
+    innovation_title: str,
+    context: str,
+    municipality_type: Optional[str] = None,
+    budget_range: Optional[str] = None,
+    time_horizon: Optional[str] = None,
+    key_partners: Optional[list[str]] = None,
+) -> str:
+    muni_type = municipality_type or "Gmina wiejska / miejsko-wiejska"
+    budget = budget_range or "12 000 – 25 000 PLN"
+    horizon = time_horizon or "3 miesiące"
+    partners = ", ".join(key_partners) if key_partners else "Centrum Usług Społecznych (CUS), Koło Gospodyń Wiejskich (KGW), Ochotnicza Straż Pożarna (OSP)"
+
+    return f"""### Plan Adaptacji Innowacji Społecznej: {innovation_title}
+**Dla samorządu/instytucji**: {context}  
+**Typ jednostki**: {muni_type} | **Horyzont czasowy**: {horizon} | **Budżet szacunkowy**: {budget}
+
+---
+
+#### 1. Diagnoza i Rola Lokalnych Partnerów
+- **Lider wdrożenia**: Ośrodek Pomocy Społecznej / Centrum Usług Społecznych (CUS) – koordynacja merytoryczna i rekrutacja beneficjentów.
+- **Kluczowi partnerzy lokalni**: {partners}.
+  - *OSP*: Wsparcie transportowe, logistyczne oraz zabezpieczenie spotkań dla seniorów i osób o ograniczonej mobilności.
+  - *KGW*: Animacja społecznościowa, międzypokoleniowa integracja, poczęstunek oraz udostępnienie świetlicy wiejskiej.
+  - *Lokalne NGO / Wolontariat*: Prowadzenie warsztatów i asysta osobista.
+
+#### 2. Harmonogram Wdrożenia (Kamienie Milowe)
+- **Faza 1 (Tygodnie 1–4) – Przygotowanie i porozumienia**:
+  - Podpisanie porozumienia partnerskiego z CUS/OSP/KGW.
+  - Opracowanie karty uczestnika i rekrutacja min. 15–25 beneficjentów z grupy docelowej.
+  - Weryfikacja barier architektonicznych w lokalach gminnych.
+- **Faza 2 (Tygodnie 5–10) – Pilotaż rozwiązania**:
+  - Uruchomienie cyklu warsztatów i spotkań integracyjnych.
+  - Bieżący monitoring frekwencji i wsparcie asystenckie dla uczestników.
+- **Faza 3 (Tygodnie 11–12) – Ewaluacja i trwałość**:
+  - Zebranie ankiet ewaluacyjnych (formularz testera innowacji ROPS).
+  - Prezentacja wyników na sesji Rady Gminy i decyzja o włączeniu do Gminnego Programu Rozwiązywania Problemów Społecznych.
+
+#### 3. Szacunkowy Kosztorys Wdrożenia
+| Pozycja kosztowa | Zakres wydatku | Szacowany koszt (PLN) |
+| :--- | :--- | :--- |
+| Koordynator projektu | Wynagrodzenie koordynatora lokalnego (3 mies. x 1/2 etatu) | 7 500 PLN |
+| Materiały warsztatowe | Pakiety edukacyjne, materiały sensoryczne / techniczne | 3 200 PLN |
+| Transport i dostępność | Dowozy OSP dla seniorów i osób z niepełnosprawnościami | 2 300 PLN |
+| Poczęstunek i integracja | Przygotowanie poczęstunku przez KGW na 6 spotkań | 1 800 PLN |
+| Audyt dostępności i promocja | Opracowanie materiałów ETR (Easy to Read) i promocja lokalna | 1 200 PLN |
+| **SUMA CAŁKOWITA** | **Kompletny pilotaż w gminie** | **16 000 PLN** |
+
+#### 4. Rekomendowane Źródła Finansowania
+- **Inkubator Innowacji Społecznych ROPS Kraków**: Dotacje i granty testujące (do 20 000 PLN).
+- **FERS (Fundusze Europejskie dla Rozwoju Społecznego)**: Projekty deinstytucjonalizacji usług społecznych.
+- **PFRON**: Środki na dostępność architektoniczną i cyfrową dla gmin.
+- **Fundusz Sołecki / GKRPA**: Wsparcie profilaktyki i aktywizacji lokalnej.
+
+#### 5. Standard Dostępności i Włączenia Społecznego (WCAG 2.1 AA)
+- Wszystkie materiały informacyjne przygotowane w standardzie **tekstu łatwego do czytania (ETR)** z kontrastem minimum 4.5:1.
+- Sale warsztatowe z podjazdem dla wózków, pętlą indukcyjną lub asystentem osoby niesłyszącej/niewidomej.
+- Możliwość dojazdu „door-to-door” zapewniona we współpracy z lokalną jednostką OSP.
+
+#### 6. Kluczowe Wskaźniki Sukcesu (KPI)
+1. **Liczba bezpośrednich odbiorców**: Minimum 20 mieszkańców objętych działaniami.
+2. **Wskaźnik zadowolenia**: Co najmniej 85% pozytywnych ocen w ankiecie testera ROPS.
+3. **Zaangażowanie partnerów**: Trwałe partnerstwo z co najmniej 2 organizacjami (OSP i KGW).
+4. **Wskaźnik wdrożeniowy**: Rekomendacja wdrożenia stałego rozwiązania do lokalnej strategii społecznej."""
+
+
+def _generate_gemini_plan(
+    innovation_title: str,
+    innovation_desc: str,
+    context: str,
+    municipality_type: Optional[str] = None,
+    budget_range: Optional[str] = None,
+    time_horizon: Optional[str] = None,
+    key_partners: Optional[list[str]] = None,
+) -> Optional[str]:
+    """Generuje plan adaptacji za pomocą Google Gemini."""
     if not settings.GEMINI_API_KEY:
         return None
     try:
-        prompt = f"""Jesteś doradcą ds. innowacji społecznych w Małopolskim Hubie Innowacji Społecznych (ROPS Kraków).
-Dostosuj poniższą innowację społeczną do potrzeb i zasobów zgłaszającej się instytucji:
+        prompt = _build_adaptation_prompt(
+            innovation_title=innovation_title,
+            innovation_desc=innovation_desc,
+            context=context,
+            municipality_type=municipality_type,
+            budget_range=budget_range,
+            time_horizon=time_horizon,
+            key_partners=key_partners,
+        )
 
-Innowacja: {innovation_title}
-Opis: {innovation_desc}
-Lokalny kontekst/potrzeba instytucji: {context}
-
-Przygotuj zwięzły, konkretny plan wdrożenia w markdown:
-1. Rekomendowana forma prawno-organizacyjna (np. współpraca z CUS / NGO / GOPS)
-2. Etapy wdrożenia (miesiąc 1, 2, 3)
-3. Szacunkowe zapotrzebowanie budżetowe i kadrowe
-4. Potencjalne źródła dofinansowania (np. Małopolski ROPS, FERS, fundusze sołeckie)
-5. Rekomendacja zminimalizowania barier dla seniorów i osób z niepełnosprawnościami (WCAG)."""
-
-        for model_name in ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"]:
+        for model_name in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2000},
+                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2500},
             }
-            res = requests.post(url, json=payload, timeout=15)
+            res = requests.post(url, json=payload, timeout=12)
             if res.status_code == 200:
                 data = res.json()
                 candidates = data.get("candidates", [])
@@ -170,62 +284,97 @@ Przygotuj zwięzły, konkretny plan wdrożenia w markdown:
     return None
 
 
-
-def generate_adaptation_plan(innovation_title: str, innovation_desc: str, context: str) -> str:
+def generate_adaptation_plan(
+    innovation_title: str,
+    innovation_desc: str,
+    context: str,
+    municipality_type: Optional[str] = None,
+    budget_range: Optional[str] = None,
+    time_horizon: Optional[str] = None,
+    key_partners: Optional[list[str]] = None,
+) -> Dict[str, Any]:
     """
     Funkcja Asystenta Adaptacji (Middleman AI) generująca plan wdrożenia innowacji
-    dla konkretnej gminy/instytucji (Gemini -> OpenAI -> Fallback).
+    dla konkretnej gminy/instytucji (Gemini -> OpenAI -> Fallback)
+    wraz ze strukturalnymi wskaźnikami budżetu, grantów i KPI.
     """
+    default_budget = budget_range or "12 000 – 25 000 PLN"
+    default_grants = [
+        "Inkubator Innowacji Społecznych ROPS Kraków (grant testujący)",
+        "FERS - Europejski Fundusz Społeczny Plus (deinstytucjonalizacja usług)",
+        "PFRON - Dostępność i wyrównywanie szans",
+        "Fundusze Sołeckie / Budżet Obywatelski gminy",
+    ]
+    default_kpis = [
+        "Min. 20 beneficjentów objętych działaniami w fazie pilotażu",
+        "Min. 85% satysfakcji odbiorców w ankiecie testera ROPS",
+        "Partnerstwo z min. 2 lokalnymi organizacjami (OSP / KGW / CUS)",
+        "Zgodność ze standardami dostępności WCAG 2.1 AA",
+    ]
+
     # 1. Próba z Gemini
     if settings.GEMINI_API_KEY:
-        gemini_plan = _generate_gemini_plan(innovation_title, innovation_desc, context)
+        gemini_plan = _generate_gemini_plan(
+            innovation_title=innovation_title,
+            innovation_desc=innovation_desc,
+            context=context,
+            municipality_type=municipality_type,
+            budget_range=budget_range,
+            time_horizon=time_horizon,
+            key_partners=key_partners,
+        )
         if gemini_plan:
-            return gemini_plan
+            return {
+                "adaptation_plan": gemini_plan,
+                "estimated_budget_pln": default_budget,
+                "recommended_grants": default_grants,
+                "key_kpis": default_kpis,
+            }
 
     # 2. Próba z OpenAI
     client = get_openai_client()
     if client:
         try:
-            prompt = f"""Jesteś doradcą ds. innowacji społecznych w Małopolskim Hubie Innowacji Społecznych (ROPS Kraków).
-Dostosuj poniższą innowację społeczną do potrzeb i zasobów zgłaszającej się instytucji:
-
-Innowacja: {innovation_title}
-Opis: {innovation_desc}
-Lokalny kontekst/potrzeba instytucji: {context}
-
-Przygotuj zwięzły, konkretny plan wdrożenia:
-1. Rekomendowana forma prawno-organizacyjna (np. współpraca z CUS / NGO / GOPS)
-2. Etapy wdrożenia (miesiąc 1, 2, 3)
-3. Szacunkowe zapotrzebowanie budżetowe i kadrowe
-4. Potencjalne źródła dofinansowania (np. Małopolski ROPS, FERS, fundusze sołeckie)
-5. Rekomendacja zminimalizowania barier dla seniorów i osób z niepełnosprawnościami (WCAG)."""
+            prompt = _build_adaptation_prompt(
+                innovation_title=innovation_title,
+                innovation_desc=innovation_desc,
+                context=context,
+                municipality_type=municipality_type,
+                budget_range=budget_range,
+                time_horizon=time_horizon,
+                key_partners=key_partners,
+            )
 
             response: Any = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
-                max_tokens=800,
+                max_tokens=1500,
             )
-            return response.choices[0].message.content or ""
+            openai_text = response.choices[0].message.content or ""
+            if openai_text.strip():
+                return {
+                    "adaptation_plan": openai_text.strip(),
+                    "estimated_budget_pln": default_budget,
+                    "recommended_grants": default_grants,
+                    "key_kpis": default_kpis,
+                }
         except Exception as e:
             print(f"OpenAI completion error: {e}")
 
-    # 3. Fallbackowy szkielet planu
-    return f"""### Plan Adaptacji Innowacji: {innovation_title}
-**Dla kontekstu**: {context}
+    # 3. Fallbackowy szkielet planu z tabelą i partnerami lokalnymi
+    fallback_text = _build_fallback_adaptation_plan(
+        innovation_title=innovation_title,
+        context=context,
+        municipality_type=municipality_type,
+        budget_range=budget_range,
+        time_horizon=time_horizon,
+        key_partners=key_partners,
+    )
 
-1. **Forma organizacyjna**:
-   - Rekomendowane wdrożenie przy Ośrodku Pomocy Społecznej / Centrum Usług Społecznych we współpracy z lokalną organizacją pozarządową (NGO).
-
-2. **Harmonogram wdrożenia (3 miesiące)**:
-   - **Miesiąc 1**: Diagnoza lokalna i nabór uczestników / wolontariuszy.
-   - **Miesiąc 2**: Szkolenie kadr na bazie podręcznika dobrych praktyk ROPS Kraków.
-   - **Miesiąc 3**: Pilotażowe uruchomienie usługi w wybranej miejscowości.
-
-3. **Zasoby i szacunkowy koszt**:
-   - 1 koordynator na 1/2 etatu + materiały edukacyjne.
-   - Szacunkowy koszt wdrożenia pilotażu: 8 000 – 15 000 PLN.
-
-4. **Źródła finansowania**:
-   - Granty mikroinnowacji ROPS Kraków, programy wsparcia JST z budżetu Województwa Małopolskiego, fundusze sołeckie.
-"""
+    return {
+        "adaptation_plan": fallback_text,
+        "estimated_budget_pln": default_budget,
+        "recommended_grants": default_grants,
+        "key_kpis": default_kpis,
+    }
