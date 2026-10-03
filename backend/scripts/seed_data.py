@@ -3,7 +3,7 @@ import json
 import os
 import sys
 import time
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 
 # Dodanie ścieżki głównej backendu do sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
