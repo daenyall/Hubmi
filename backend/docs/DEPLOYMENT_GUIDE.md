@@ -15,7 +15,9 @@ Podczas konfiguracji w chmurze (Render / Fly.io / Railway / Cloud Run) należy s
 | `SUPABASE_URL` | `https://sctlcicbbfppbfqewziu.supabase.co` | Adres projektu Supabase |
 | `SUPABASE_KEY` | *(Klucz `service_role` z panelu Supabase)* | Dostęp administracyjny do bazy i pgvector |
 | `OPENAI_API_KEY` | `sk-proj-...` | Klucz OpenAI dla modelu `text-embedding-3-small` i `gpt-4o-mini` |
-| `CORS_ORIGIN_REGEX` | `https://.*\.vercel\.app` | Akceptuje wszystkie domeny Vercela |
+| `GEMINI_API_KEY` | `AIzaSy...` | Alternatywny, bezpłatny klucz Google Gemini |
+| `WORKERS` | `2` (lub auto przez `WEB_CONCURRENCY`) | Liczba procesów roboczych Uvicorn |
+| `CORS_ORIGIN_REGEX` | `https://.*(\.vercel\.app\|\.trycloudflare\.com\|\.onrender\.com)` | Akceptuje domeny Vercel, Cloudflare i Render |
 
 ---
 
@@ -25,7 +27,7 @@ Podczas konfiguracji w chmurze (Render / Fly.io / Railway / Cloud Run) należy s
 1. Zaloguj się na [render.com](https://render.com).
 2. Wybierz **New +** -> **Blueprint** i wskaż repozytorium `Hubmi`.
 3. Render automatycznie wykryje plik [backend/render.yaml](file:///Users/spok0jny/AntigravityProjects/hackyeah2026/backend/render.yaml).
-4. Wprowadź brakujące sekrety (`SUPABASE_URL`, `SUPABASE_KEY`, `OPENAI_API_KEY`).
+4. Wprowadź brakujące sekrety (`SUPABASE_URL`, `SUPABASE_KEY`, `OPENAI_API_KEY` lub `GEMINI_API_KEY`).
 5. Kliknij **Apply** – serwis wstanie pod publicznym adresem HTTPS: `https://hubmi-backend.onrender.com`.
 
 ### Opcja B: Dowolny hosting kontenerowy (Fly.io, Railway, GCP Cloud Run)
@@ -34,13 +36,16 @@ W repozytorium znajduje się gotowy, utwardzony plik [backend/Dockerfile](file:/
 - Działa na użytkowniku bez uprawnień roota (`appuser`).
 - Posiada wbudowany `HEALTHCHECK` pod endpoint `/api/health`.
 
-### Opcja C: Natychmiastowy Tunel (ngrok / Cloudflare Tunnel)
+### Opcja C: Natychmiastowy Tunel Cloudflare / ngrok
 Jeśli potrzebujesz natychmiast połączyć Vercel Daniela z działającą lokalnie instancją bez czekania na build w chmurze:
 ```bash
-# Uruchomienie tunelu ngrok na porcie 8000
+# Cloudflare Tunnel (darmowy, natychmiastowy HTTPS, bez rejestracji konta)
+cloudflared tunnel --url http://localhost:8000
+
+# Alternatywnie ngrok:
 ngrok http 8000
 ```
-Otrzymany adres HTTPS (np. `https://a1b2-c3d4.ngrok-free.app`) przekazujesz Danielowi jako `NEXT_PUBLIC_BACKEND_URL`.
+Otrzymany adres HTTPS (np. `https://xyz-demo.trycloudflare.com`) przekazujesz Danielowi jako `NEXT_PUBLIC_BACKEND_URL`.
 
 ---
 
