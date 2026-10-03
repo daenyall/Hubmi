@@ -77,7 +77,7 @@ test("POST wysyła przycięty opis i zachowuje dane kart, bez interpretacji scor
     return jsonResponse({ matches: [wireItem], total_found: 1, related_resources: [item] });
   });
   const result = await api.matchProblem({ problem_description: "  Pomoc seniorom\n" });
-  assert.deepEqual(result, { matches: [item], related_resources: [item] });
+  assert.deepEqual(result, { matches: [item], related_resources: [item], advice: "", categories: [], can_submit_challenge: false });
   assert.equal(fetchMock.mock.callCount(), 1);
 });
 
@@ -92,7 +92,7 @@ test("puste dopasowania i pominięte materiały są poprawną odpowiedzią", asy
   const api = apiFor(t);
   t.mock.method(globalThis, "fetch", async () => jsonResponse({ matches: [], total_found: 0 }));
   assert.deepEqual(await api.matchProblem({ problem_description: "Potrzeba" }), {
-    matches: [], related_resources: [],
+    matches: [], related_resources: [], advice: "", categories: [], can_submit_challenge: false,
   });
 });
 
@@ -123,9 +123,13 @@ test("niepoprawny JSON powoduje błąd odpowiedzi", async (t) => {
 
 test("błędy HTTP zachowują status i nie uruchamiają mocku", async (t) => {
   const api = apiFor(t, { mock: "false" });
-  for (const status of [404, 422, 429, 500]) {
+  for (const status of [404, 429, 500]) {
     t.mock.method(globalThis, "fetch", async () => new Response("Błąd testowy", { status }));
     await assert.rejects(api.matchProblem({ problem_description: "Samotność seniorów" }), expectKind("api", status));
+  }
+  for (const status of [400, 422]) {
+    t.mock.method(globalThis, "fetch", async () => new Response("Błąd testowy", { status }));
+    await assert.rejects(api.matchProblem({ problem_description: "Samotność seniorów" }), expectKind("validation", status));
   }
 });
 
@@ -205,7 +209,7 @@ test("demo potrafi zwrócić brak dopasowań", async (t) => {
   const api = apiFor(t, { mock: "true" });
   t.mock.method(globalThis, "fetch", () => assert.fail("Demo nie wywołuje backendu"));
   assert.deepEqual(await api.matchProblem({ problem_description: "Potrzebujemy ogrodu społecznego" }), {
-    matches: [], related_resources: [],
+    matches: [], related_resources: [], advice: "", categories: [], can_submit_challenge: false,
   });
 });
 
@@ -228,7 +232,7 @@ test("kontrakt backendu dopuszcza null w polach opcjonalnych", async (t) => {
   }));
   assert.deepEqual(await api.matchProblem({ problem_description: "Potrzeba" }), {
     matches: [{ id: "minimal", title: "Minimalny rekord", description: "", reason: "", source_url: null }],
-    related_resources: [],
+    related_resources: [], advice: "", categories: [], can_submit_challenge: false,
   });
 });
 
@@ -274,4 +278,80 @@ test("limit czasu przerywa także generowanie planu", async (t) => {
   const rejection = assert.rejects(api.adaptInnovation("Tytuł", "Mała gmina"), /zbyt długo/);
   t.mock.timers.tick(api.MATCH_TIMEOUT_MS);
   await rejection;
+});
+
+test("parser zachowuje no_match_advice, suggested_categories i can_submit_as_new_challenge", async (t) => {
+  const api = apiFor(t);
+  t.mock.method(globalThis, "fetch", async () => jsonResponse({
+    matches: [], total_found: 0,
+    no_match_advice: "  Doprecyzuj opis potrzeby.  ",
+    suggested_categories: ["Seniorzy", "Dostępność", "Seniorzy", " Młodzież "],
+    can_submit_as_new_challenge: true,
+  }));
+  const result = await api.matchProblem({ problem_description: "Potrzeba bez dopasowań" });
+  assert.equal(result.advice, "Doprecyzuj opis potrzeby.");
+  assert.deepEqual(result.categories, ["Seniorzy", "Dostępność", "Młodzież"]);
+  assert.equal(result.can_submit_challenge, true);
+});
+
+test("brak pól porady daje puste wartości, a zgłoszenie wymaga jawnego true", async (t) => {
+  const api = apiFor(t);
+  t.mock.method(globalThis, "fetch", async () => jsonResponse({
+    matches: [], total_found: 0, no_match_advice: null, suggested_categories: null,
+  }));
+  const bezPol = await api.matchProblem({ problem_description: "Potrzeba" });
+  assert.equal(bezPol.advice, "");
+  assert.deepEqual(bezPol.categories, []);
+  assert.equal(bezPol.can_submit_challenge, false);
+  t.mock.restoreAll();
+  const api2 = apiFor(t);
+  t.mock.method(globalThis, "fetch", async () => jsonResponse({
+    matches: [], total_found: 0, can_submit_as_new_challenge: "tak",
+  }));
+  await assert.rejects(api2.matchProblem({ problem_description: "Potrzeba" }), expectKind("response"));
+});
+
+test("niepoprawne typy pól porady odrzucają całą odpowiedź", async (t) => {
+  const api = apiFor(t);
+  for (const body of [
+    { matches: [], total_found: 0, no_match_advice: 7 },
+    { matches: [], total_found: 0, suggested_categories: "Seniorzy" },
+    { matches: [], total_found: 0, suggested_categories: [null] },
+    { matches: [], total_found: 0, suggested_categories: [""] },
+  ]) {
+    t.mock.method(globalThis, "fetch", async () => jsonResponse(body));
+    await assert.rejects(api.matchProblem({ problem_description: "Potrzeba" }), expectKind("response"));
+  }
+});
+
+test("maksymalna długość opisu odpowiada MatchRequest.max_length", async (t) => {
+  const api = apiFor(t);
+  const fetchMock = t.mock.method(globalThis, "fetch", () => assert.fail("Opis za długi"));
+  await assert.rejects(api.matchProblem({ problem_description: "a".repeat(2001) }), expectKind("validation"));
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test("400 pokazuje tekstowy detail backendu, a 422 nie ujawnia pól Pydantic", async (t) => {
+  const api = apiFor(t);
+  t.mock.method(globalThis, "fetch", async () => new Response(
+    JSON.stringify({ detail: "Opis problemu musi zawierać co najmniej 3 znaki." }),
+    { status: 400, headers: { "Content-Type": "application/json" } },
+  ));
+  await assert.rejects(api.matchProblem({ problem_description: "Potrzeba" }), (error) => {
+    assert.equal(error.kind, "validation");
+    assert.equal(error.message, "Opis problemu musi zawierać co najmniej 3 znaki.");
+    return true;
+  });
+  t.mock.restoreAll();
+  const api2 = apiFor(t);
+  t.mock.method(globalThis, "fetch", async () => new Response(
+    JSON.stringify({ detail: [{ type: "string_too_long", loc: ["body", "problem_description"] }] }),
+    { status: 422, headers: { "Content-Type": "application/json" } },
+  ));
+  await assert.rejects(api2.matchProblem({ problem_description: "Potrzeba" }), (error) => {
+    assert.equal(error.kind, "validation");
+    assert.doesNotMatch(error.message, /string_too_long|problem_description|loc/);
+    assert.match(error.message, /2000/);
+    return true;
+  });
 });

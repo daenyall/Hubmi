@@ -1,4 +1,7 @@
 /** Kontrakt backendu: backend/app/models/schemas.py (POST /api/match). */
+export const MIN_PROBLEM_LENGTH = 3;
+export const MAX_PROBLEM_LENGTH = 2000;
+
 export interface MatchRequest {
   problem_description: string;
   threshold?: number | null;
@@ -21,6 +24,9 @@ export interface BackendMatchResponse {
   matches: BackendMatchItem[];
   query?: string | null;
   total_found: number;
+  no_match_advice?: string | null;
+  suggested_categories?: string[] | null;
+  can_submit_as_new_challenge?: boolean;
   // Rozszerzenie frontendu do uzgodnienia; obecny backend nie zwraca materiałów.
   related_resources?: MatchItem[];
 }
@@ -39,6 +45,12 @@ export interface MatchItem {
 export interface MatchResponse {
   matches: MatchItem[];
   related_resources: MatchItem[];
+  /** no_match_advice backendu; pusty ciąg, gdy backend nie przysłał porady. */
+  advice: string;
+  /** suggested_categories backendu; podpowiedzi do przeformułowania opisu. */
+  categories: string[];
+  /** can_submit_as_new_challenge; bez jawnego true nie proponujemy zgłoszenia. */
+  can_submit_challenge: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -52,6 +64,9 @@ function isOptionalText(value: unknown): value is string | null | undefined {
 }
 function isTextList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(isText);
+}
+function isOptionalTextList(value: unknown): value is string[] | null | undefined {
+  return value === null || value === undefined || isTextList(value);
 }
 function isSourceUrl(value: unknown): value is string | null | undefined {
   if (value === null || value === undefined || value === "") return true;
@@ -112,11 +127,16 @@ function parseItems(value: unknown, parse: (item: unknown) => MatchItem): MatchI
 export function parseMatchResponse(value: unknown): MatchResponse {
   if (
     !isRecord(value) || !Number.isInteger(value.total_found) ||
-    (value.total_found as number) < 0 || !isOptionalText(value.query)
+    (value.total_found as number) < 0 || !isOptionalText(value.query) ||
+    !isOptionalText(value.no_match_advice) || !isOptionalTextList(value.suggested_categories) ||
+    !(value.can_submit_as_new_challenge === undefined || typeof value.can_submit_as_new_challenge === "boolean")
   ) throw new Error("Niepoprawna odpowiedź matchmakingu.");
   return {
     matches: parseItems(value.matches, parseInnovation),
     related_resources: value.related_resources === undefined
       ? [] : parseItems(value.related_resources, parseResource),
+    advice: value.no_match_advice?.trim() ?? "",
+    categories: [...new Set((value.suggested_categories ?? []).map((name) => name.trim()).filter(Boolean))],
+    can_submit_challenge: value.can_submit_as_new_challenge === true,
   };
 }
