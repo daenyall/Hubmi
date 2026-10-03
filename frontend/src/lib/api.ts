@@ -240,3 +240,47 @@ export async function getBackendJson(path: string, signal?: AbortSignal): Promis
     throw new BackendApiError("network", "Nie udało się połączyć z katalogiem. Sprawdź połączenie i spróbuj ponownie.");
   } finally { clearTimeout(timeout); signal?.removeEventListener("abort", onAbort); }
 }
+
+export interface BackendResult { ok: boolean; status: number; data: unknown }
+
+/**
+ * Żądanie do FastAPI z tokenem bieżącej sesji. Limit 20 s obejmuje też odczyt body.
+ * Statusy HTTP zwracamy bez tłumaczenia — mapują je moduły domenowe.
+ * Token trafia wyłącznie do nagłówka Authorization; nie jest logowany ani zapisywany.
+ */
+export async function requestBackendJson(
+  path: string,
+  { method = "GET", body, token, signal }: { method?: string; body?: unknown; token?: string; signal?: AbortSignal } = {},
+): Promise<BackendResult> {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort(signal?.reason);
+  if (signal?.aborted) onAbort();
+  else signal?.addEventListener("abort", onAbort, { once: true });
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, MATCH_TIMEOUT_MS);
+  try {
+    controller.signal.throwIfAborted();
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${BACKEND_URL}${path}`, {
+      method, headers, cache: "no-store", signal: controller.signal,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const text = await response.text();
+    let data: unknown = null;
+    if (text) {
+      try { data = JSON.parse(text); }
+      catch {
+        if (controller.signal.aborted) controller.signal.throwIfAborted();
+        throw new BackendApiError("response", "Otrzymaliśmy niepoprawną odpowiedź usługi. Spróbuj ponownie.", response.status);
+      }
+    }
+    return { ok: response.ok, status: response.status, data };
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (timedOut) throw new BackendApiError("timeout", "Operacja trwała zbyt długo i nie została potwierdzona. Spróbuj ponownie.");
+    if (error instanceof BackendApiError) throw error;
+    throw new BackendApiError("network", "Nie udało się połączyć z usługą. Sprawdź połączenie i spróbuj ponownie.");
+  } finally { clearTimeout(timeout); signal?.removeEventListener("abort", onAbort); }
+}
