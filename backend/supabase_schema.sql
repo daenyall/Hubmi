@@ -58,8 +58,9 @@ CREATE TABLE IF NOT EXISTS public.submission_messages (
 -- 5. FUNKCJA RPC DO MATCHMAKINGU WEKTOROWEGO (Wywoływana przez FastAPI)
 CREATE OR REPLACE FUNCTION match_innovations (
     query_embedding vector(1536),
-    match_threshold FLOAT DEFAULT 0.25,
-    match_count INT DEFAULT 4
+    match_threshold FLOAT DEFAULT 0.20,
+    match_count INT DEFAULT 4,
+    filter_category TEXT DEFAULT NULL
 )
 RETURNS TABLE (
     id TEXT,
@@ -85,10 +86,11 @@ BEGIN
         i.why_relevant,
         i.source_url,
         i.status,
-        ROUND((1 - (i.embedding <=> query_embedding))::NUMERIC, 4)::FLOAT AS similarity_score
+        GREATEST(0.0, LEAST(1.0, ROUND((1 - (i.embedding <=> query_embedding))::NUMERIC, 4)))::FLOAT AS similarity_score
     FROM public.innovations i
     WHERE i.embedding IS NOT NULL
       AND (1 - (i.embedding <=> query_embedding)) >= match_threshold
+      AND (filter_category IS NULL OR i.category = filter_category)
     ORDER BY i.embedding <=> query_embedding ASC
     LIMIT match_count;
 END;

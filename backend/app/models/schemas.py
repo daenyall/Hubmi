@@ -34,6 +34,10 @@ class MatchRequest(BaseModel):
         le=50,
         description="Maksymalna liczba zwróconych innowacji",
     )
+    category: Optional[str] = Field(
+        None,
+        description="Opcjonalny filtr kategorii (np. Seniorzy, Dostępność, Zdrowie psychiczne)",
+    )
 
 
 class MatchItem(BaseModel):
@@ -52,6 +56,19 @@ class MatchResponse(BaseModel):
     matches: list[MatchItem]
     query: Optional[str] = None
     total_found: int
+    no_match_advice: Optional[str] = Field(
+        None,
+        description="Wskazówki dla użytkownika, gdy nie znaleziono bezpośrednich dopasowań",
+    )
+    suggested_categories: Optional[list[str]] = Field(
+        None,
+        description="Lista dostępnych kategorii innowacji ROPS",
+    )
+    can_submit_as_new_challenge: bool = Field(
+        True,
+        description="Flaga informująca o możliwości złożenia nowej fiszki wyzwania do ROPS",
+    )
+
 
 
 # Kontrakt Middlemana AI (POST /api/adapt)
