@@ -1,5 +1,7 @@
 # Etap 3 — wynik i granice weryfikacji
 
+**Najnowsza kontrola integracyjna, 3 października 2026, HEAD ebb3241:** [przekazanie A+B](rops/integration-handoff.md) zawiera aktualne zmiany, wymagania SDK i wyniki kontroli. Dodano automatyczny odczyt listy ROPS bez odświeżania formularzy. Publiczna konfiguracja, konta testowe i wdrożenie zabezpieczeń na rzeczywistej bazie nadal nie są potwierdzone; integracja pozostaje wyłączona. Poniższe wyniki przy starszych commitach zachowano jako historię, a testy na atrapach nie są potwierdzeniem prawdziwego Supabase.
+
 ## Ukończone funkcje
 
 - `/rops`: lista z tytułem, datą i statusem, filtr istniejących statusów i odświeżenie.

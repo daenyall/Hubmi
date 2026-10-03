@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Lokalne artefakty: skopiowany projekt kontrolny z własnym .next/.
+    "coverage/**",
   ]),
 ]);
 

@@ -205,3 +205,38 @@ export async function adaptInnovation(
     signal?.removeEventListener("abort", onAbort);
   }
 }
+
+export class BackendApiError extends Error {
+  constructor(public readonly kind: "network" | "api" | "response" | "timeout", message: string, public readonly status?: number) {
+    super(message); this.name = "BackendApiError";
+  }
+}
+
+/** Publiczny GET z istniejącą konfiguracją backendu i limitem 20 s, także na body. */
+export async function getBackendJson(path: string, signal?: AbortSignal): Promise<unknown> {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort(signal?.reason);
+  if (signal?.aborted) onAbort();
+  else signal?.addEventListener("abort", onAbort, { once: true });
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, MATCH_TIMEOUT_MS);
+  try {
+    controller.signal.throwIfAborted();
+    const response = await fetch(`${BACKEND_URL}${path}`, {
+      method: "GET", headers: { Accept: "application/json" }, cache: "no-store", signal: controller.signal,
+    });
+    if (!response.ok) throw new BackendApiError("api", response.status === 429
+      ? "Zbyt wiele zapytań. Poczekaj chwilę i spróbuj ponownie."
+      : "Nie udało się pobrać katalogu. Spróbuj ponownie za chwilę.", response.status);
+    try { return await response.json(); }
+    catch (error) {
+      if (controller.signal.aborted) throw error;
+      throw new BackendApiError("response", "Otrzymaliśmy niepoprawną odpowiedź katalogu. Spróbuj ponownie.");
+    }
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (timedOut) throw new BackendApiError("timeout", "Wczytywanie katalogu trwało zbyt długo. Spróbuj ponownie.");
+    if (error instanceof BackendApiError) throw error;
+    throw new BackendApiError("network", "Nie udało się połączyć z katalogiem. Sprawdź połączenie i spróbuj ponownie.");
+  } finally { clearTimeout(timeout); signal?.removeEventListener("abort", onAbort); }
+}

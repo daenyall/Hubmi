@@ -16,9 +16,9 @@ import { InnovationPicker } from "./innovation-picker";
 type SaveState = { status: "idle" | "loading" } | { status: "error"; message: string } | { status: "success"; saved: Submission };
 const fields = [
   { key: "title", label: "Tytuł pomysłu", hint: "Krótka nazwa, która opisuje Twój pomysł.", max: 160, rows: 0 },
-  { key: "problem_description", label: "Problem lub potrzeba", hint: "Jaką sytuację chcesz zmienić i dlaczego jest to potrzebne?", max: 10000, rows: 4 },
-  { key: "solution_description", label: "Istota rozwiązania", hint: "Na czym polega pomysł? Jak będzie działał w praktyce?", max: 10000, rows: 5 },
-  { key: "target_group", label: "Odbiorcy", hint: "Kto będzie korzystać z rozwiązania?", max: 4000, rows: 3 },
+  { key: "problem_description", label: "Problem lub potrzeba", hint: "Opisz, kogo dotyczy problem, gdzie występuje i jakie ma skutki. Jeśli masz dane lub obserwacje, podaj ich źródło. Oddziel to, co wiesz, od przypuszczeń.", max: 10000, rows: 4 },
+  { key: "solution_description", label: "Istota rozwiązania", hint: "Wyjaśnij, jak pomysł odpowiada na opisany problem. Podaj główne działania, kto je wykona i po czym poznasz, że przyniosły oczekiwaną zmianę.", max: 10000, rows: 5 },
+  { key: "target_group", label: "Odbiorcy", hint: "Wskaż osoby, które skorzystają z rozwiązania, ich potrzeby i ewentualne bariery udziału. Określ zasięg oraz liczbę odbiorców, jeśli ją znasz.", max: 4000, rows: 3 },
 ] as const;
 
 export function SubmissionCreator({ initialInnovationId = "" }: { initialInnovationId?: string }) {
@@ -99,7 +99,8 @@ export function SubmissionCreator({ initialInnovationId = "" }: { initialInnovat
             </div>)}
             <div className="space-y-2">
               <label htmlFor="implementation_stage" className="block font-semibold">Etap realizacji (wymagane)</label>
-              <select id="implementation_stage" required value={draft.implementation_stage} onChange={(e) => update("implementation_stage", e.target.value)} aria-invalid={!!errors.implementation_stage || undefined} aria-describedby={errors.implementation_stage ? "implementation_stage-error" : undefined} className="min-h-12 w-full rounded-lg border border-input bg-background px-[12px] py-3 text-base">
+              <p id="implementation_stage-hint" className="text-sm leading-relaxed text-muted-foreground">Pomysł: planujesz działania. Prototyp: przygotowujesz pierwszą wersję rozwiązania. Pilotaż: sprawdzasz je z ograniczoną grupą odbiorców. Wdrożenie: rozwiązanie jest już wykorzystywane.</p>
+              <select id="implementation_stage" required value={draft.implementation_stage} onChange={(e) => update("implementation_stage", e.target.value)} aria-invalid={!!errors.implementation_stage || undefined} aria-describedby={`implementation_stage-hint${errors.implementation_stage ? " implementation_stage-error" : ""}`} className="min-h-12 w-full rounded-lg border border-input bg-background px-[12px] py-3 text-base">
                 <option value="">Wybierz etap</option>{Object.entries(STAGES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
               {errors.implementation_stage && <p id="implementation_stage-error" className="text-sm text-red-900">{errors.implementation_stage}</p>}

@@ -1,5 +1,7 @@
 # Etap 3 — kontrakt ROPS i komunikacji do uzgodnienia z A
 
+**Aktualizacja integracyjna, 3 października 2026, HEAD ebb3241:** decyzją zespołu zachowujemy Supabase Auth i bezpośrednie SDK dla fiszek, ROPS i rozmów; nie przechodzimy na prywatne endpointy FastAPI. Aktualny zestaw pól, stan lokalnego SQL, blokady wdrożenia i kontrolę odpytywania listy opisuje [integration-handoff.md](rops/integration-handoff.md). Poniższe raporty stanu przy starszych commitach są historyczne; nie dowodzą stanu obecnego backendu ani zdalnej bazy. Nie zmieniono nazw pól i enumów tego modelu, a flagi czekają na potwierdzenie A.
+
 **To propozycja, nie wdrożony kontrakt backendu.** Przejrzano lokalne `backend/supabase_schema.sql`, `backend/fix_rls_policies.sql`, modele FastAPI, kontrakt etapu 2 i jego raport. HEAD przy rozpoczęciu: `49a8b47`. Nie wykonano pull/merge/pusha. Frontend korzysta dalej z istniejącego Supabase SDK / PostgREST i Auth; nie dodaje endpointów, klucza service_role ani pozorowanych sesji.
 
 ## Faktyczny stan i blokady
