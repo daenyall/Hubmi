@@ -63,55 +63,11 @@ async def match_problem(request: MatchRequest):
                             status=str(item.get("status", "sprawdzone")),
                         ))
         except Exception as e:
-            print(f"Warning: RPC match_innovations failed or not created yet ({e}). Trying direct table query.")
-            
-            # Fallback: jeśli funkcja RPC nie została jeszcze wklejona w Supabase, pobierz innowacje z tabeli
-            try:
-                table_res = supabase.table("innovations").select("*").limit(request.limit or 4).execute()
-                t_data: Any = table_res.data
-                if isinstance(t_data, list):
-                    for item in t_data:
-                        if isinstance(item, dict):
-                            matches.append(MatchItem(
-                                id=str(item.get("id", "")),
-                                title=str(item.get("title", "")),
-                                similarity_score=0.88,
-                                why_relevant=_to_str(item.get("why_relevant")),
-                                source_url=_to_str(item.get("source_url")),
-                                target_group=_to_str(item.get("target_group")),
-                                category=_to_str(item.get("category")),
-                                description=_to_str(item.get("description")),
-                                status=str(item.get("status", "sprawdzone")),
-                            ))
-            except Exception as table_err:
-                print(f"Table query error: {table_err}")
-
-    # Fallback lokalny (gdy baza jest jeszcze pusta przed seedem)
-    if not matches:
-        matches = [
-            MatchItem(
-                id="inv_01",
-                title="Mobilny Asystent Seniora",
-                similarity_score=0.89,
-                why_relevant="Rozwiązanie testowane w gminach wiejskich; łączy transport z opieką.",
-                source_url="https://rops.krakow.pl/innowacje/asystent-seniora",
-                target_group="Seniorzy 65+, osoby z niepełnosprawnością ruchową",
-                category="Seniorzy",
-                description="System mobilnego wsparcia dla osób starszych w rozproszonych sołectwach.",
-                status="sprawdzone",
-            ),
-            MatchItem(
-                id="inv_06",
-                title="Mobilny Punkt Usług Społecznych (Bus CUS)",
-                similarity_score=0.82,
-                why_relevant="Przełamuje barierę depopulacji i odległości od ośrodków miejskich w Małopolsce.",
-                source_url="https://rops.krakow.pl/innowacje/mobilny-cus",
-                target_group="Mieszkańcy małych sołectw, osoby zależne",
-                category="Usługi publiczne",
-                description="Mikrobus z personelem pomocowym dojeżdżający do mieszkańców wsi.",
-                status="sprawdzone",
+            print(f"Error: RPC match_innovations failed: {e}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Błąd silnika wektorowego bazy danych: {str(e)}"
             )
-        ]
 
     return MatchResponse(
         matches=matches,

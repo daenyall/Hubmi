@@ -112,14 +112,57 @@ CREATE POLICY "Service role manages innovations"
 ON public.innovations FOR ALL 
 USING (auth.role() = 'service_role' OR auth.role() = 'authenticated');
 
--- Odczyt i dodawanie fiszek: Publiczny dostęp dla użytkowników demo
-CREATE POLICY "Public read and write submissions" 
-ON public.submissions FOR ALL 
-USING (true) 
+-- Zabezpieczone polityki dla zgłoszeń (submissions):
+CREATE POLICY "Anyone can create submission" 
+ON public.submissions FOR INSERT 
+TO public 
 WITH CHECK (true);
 
--- Odczyt i dodawanie wiadomości w dialogu fiszki:
-CREATE POLICY "Public read and write messages" 
-ON public.submission_messages FOR ALL 
-USING (true) 
-WITH CHECK (true);
+CREATE POLICY "Authors and Admins view submissions" 
+ON public.submissions FOR SELECT 
+TO public 
+USING (
+    (auth.uid() IS NOT NULL AND auth.uid() = user_id)
+    OR (access_token IS NOT NULL AND access_token = COALESCE(current_setting('request.headers', true)::json->>'x-submission-token', ''))
+    OR (auth.jwt()->>'email' LIKE '%@rops.krakow.pl' OR auth.jwt()->>'role' = 'rops_admin' OR auth.role() = 'service_role')
+);
+
+CREATE POLICY "Admins manage submissions" 
+ON public.submissions FOR UPDATE 
+TO public 
+USING (
+    auth.jwt()->>'email' LIKE '%@rops.krakow.pl' 
+    OR auth.jwt()->>'role' = 'rops_admin' 
+    OR auth.role() = 'service_role'
+);
+
+-- Zabezpieczone polityki dla wiadomości (submission_messages):
+CREATE POLICY "Participants view messages" 
+ON public.submission_messages FOR SELECT 
+TO public 
+USING (
+    EXISTS (
+        SELECT 1 FROM public.submissions s 
+        WHERE s.id = submission_messages.submission_id
+          AND (
+              (auth.uid() IS NOT NULL AND auth.uid() = s.user_id)
+              OR (s.access_token IS NOT NULL AND s.access_token = COALESCE(current_setting('request.headers', true)::json->>'x-submission-token', ''))
+              OR (auth.jwt()->>'email' LIKE '%@rops.krakow.pl' OR auth.jwt()->>'role' = 'rops_admin' OR auth.role() = 'service_role')
+          )
+    )
+);
+
+CREATE POLICY "Participants send messages" 
+ON public.submission_messages FOR INSERT 
+TO public 
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.submissions s 
+        WHERE s.id = submission_messages.submission_id
+          AND (
+              (auth.uid() IS NOT NULL AND auth.uid() = s.user_id)
+              OR (s.access_token IS NOT NULL AND s.access_token = COALESCE(current_setting('request.headers', true)::json->>'x-submission-token', ''))
+              OR (auth.jwt()->>'email' LIKE '%@rops.krakow.pl' OR auth.jwt()->>'role' = 'rops_admin' OR auth.role() = 'service_role')
+          )
+    )
+);
