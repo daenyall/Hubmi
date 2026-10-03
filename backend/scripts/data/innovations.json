@@ -98,5 +98,56 @@
     "description": "Podwyższone grządki dostępne dla osób na wózkach, ścieżki sensoryczne (kora, kamienie, szyszki), rośliny miododajne i zioła zapachowe. Miejsce wspólnych warsztatów ogrodniczych łączących pensjonariuszy z dziećmi z pobliskiej szkoły.",
     "source_url": "https://rops.krakow.pl/innowacje/ogrod-sensoryczny",
     "status": "sprawdzone"
+  },
+  {
+    "id": "inv_11",
+    "title": "Jadłodzielnia Społeczna z Warsztatem Zero-Waste",
+    "category": "Pomoc społeczna",
+    "target_group": "Osoby ubogie, bezdomne, rodziny wielodzietne oraz seniorzy w trudnej sytuacji materialnej",
+    "why_relevant": "Łączy natychmiastową pomoc żywnościową z edukacją niemarnowania zasobów i integracją sąsiedzką.",
+    "description": "Punkt bezpłatnej wymiany żywności z certyfikowanymi lodówkami społecznymi, zorganizowany przy lokalnym CUS. Towarzyszą mu cykliczne warsztaty przetwarzania nadwyżek żywności i gotowania oszczędnego prowadzone przez lokalnych wolontariuszy.",
+    "source_url": "https://rops.krakow.pl/innowacje/jadlodzielnia-spoleczna",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_12",
+    "title": "Mieszkanie Treningowe dla Osób w Spektrum Autyzmu",
+    "category": "Dostępność",
+    "target_group": "Dorośli w spektrum autyzmu i z niepełnosprawnościami sprzężonymi dążący do samodzielności",
+    "why_relevant": "Alternatywa dla instytucjonalizacji; przygotowuje do samodzielnego mieszkania z asystentem.",
+    "description": "Modułowe mieszkanie wspomagane, w którym osoby dorosłe w spektrum autyzmu uczą się samodzielnego prowadzenia gospodarstwa domowego (zakupy, gotowanie, płacenie rachunków) pod okiem terapeutów i asystentów cienia w systemie turnusowym.",
+    "source_url": "https://rops.krakow.pl/innowacje/mieszkanie-treningowe",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_13",
+    "title": "Międzypokoleniowy Klub Rodzinny 'Razem Łatwiej'",
+    "category": "Wsparcie rodziny",
+    "target_group": "Młode rodziny, rodzice samotnie wychowujący dzieci, seniorzy poszukujący aktywności",
+    "why_relevant": "Odbudowuje więzi międzypokoleniowe w małych gminach, gdzie brakuje żłobków i klubów seniora.",
+    "description": "Przestrzeń spotkań łącząca klub seniora z bawialnią i punktem wsparcia rodziców. Seniorzy pełnią rolę 'przyszywanych dziadków', wspierając rodziców w doraźnej opiece nad dziećmi, a rodzice pomagają seniorom w sprawach cyfrowych i technicznych.",
+    "source_url": "https://rops.krakow.pl/innowacje/klub-rodzinny",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_14",
+    "title": "Bezpieczny E-Senior w Sieci",
+    "category": "Włączenie cyfrowe",
+    "target_group": "Seniorzy korzystający z internetu i bankowości elektronicznej, narażeni na cyberzagrożenia",
+    "why_relevant": "Zwiększa cyberbezpieczeństwo osób starszych, skutecznie chroniąc przed phishingiem i fałszywymi SMS-ami.",
+    "description": "Praktyczny program edukacyjny z symulatorem podejrzanych wiadomości i stron bankowych. Seniorzy na bezpiecznym tablecie ćwiczą rozpoznawanie prób wyłudzeń 'na wnuczka' i 'na policjanta' oraz zgłaszanie incydentów do CERT Polska.",
+    "source_url": "https://rops.krakow.pl/innowacje/bezpieczny-e-senior",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_15",
+    "title": "Mobilny Punkt Pomocy Psychotraumatologicznej i Kryzysowej",
+    "category": "Zdrowie psychiczne",
+    "target_group": "Kobiety i dzieci doświadczające przemocy domowej, rodziny w nagłym kryzysie losowym na terenach wiejskich",
+    "why_relevant": "Zapewnia dyskretną pomoc psychologiczną i prawną w miejscach, gdzie ofiary nie mają możliwości dojazdu do miasta powiatowego.",
+    "description": "Nieoznakowany mobilny gabinet psychologiczno-prawny docierający bezpośrednio do sołectw. Oferuje natychmiastowe wsparcie kryzysowe, pomoc psychotraumatologa oraz bezpieczne schronienie tymczasowe w porozumieniu z Ośrodkiem Interwencji Kryzysowej.",
+    "source_url": "https://rops.krakow.pl/innowacje/pomoc-kryzysowa",
+    "status": "sprawdzone"
   }
 ]
+

@@ -16,9 +16,24 @@ class MessageResponse(BaseModel):
 
 # Kontrakt Matchmakingu (POST /api/match)
 class MatchRequest(BaseModel):
-    problem_description: str = Field(..., description="Opis problemu społecznego zgłaszanego przez JST/NGO")
-    threshold: Optional[float] = Field(0.2, description="Minimalny próg podobieństwa cosinusowego")
-    limit: Optional[int] = Field(4, description="Maksymalna liczba zwróconych innowacji")
+    problem_description: str = Field(
+        ...,
+        min_length=3,
+        max_length=2000,
+        description="Opis problemu społecznego zgłaszanego przez JST/NGO",
+    )
+    threshold: Optional[float] = Field(
+        0.2,
+        ge=0.0,
+        le=1.0,
+        description="Minimalny próg podobieństwa cosinusowego",
+    )
+    limit: Optional[int] = Field(
+        4,
+        ge=1,
+        le=50,
+        description="Maksymalna liczba zwróconych innowacji",
+    )
 
 
 class MatchItem(BaseModel):

@@ -3,6 +3,9 @@ import math
 from typing import List, Optional, Any
 from app.core.config import settings
 
+from functools import lru_cache
+import re
+
 # Inicjalizacja klienta OpenAI tylko jeśli klucz jest ustawiony
 _openai_client = None
 
@@ -21,13 +24,25 @@ def get_openai_client():
     return None
 
 
+def calculate_cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
+    """Oblicza podobieństwo cosinusowe pomiędzy dwoma wektorami."""
+    if len(vec_a) != len(vec_b) or not vec_a:
+        return 0.0
+    dot = sum(a * b for a, b in zip(vec_a, vec_b))
+    norm_a = math.sqrt(sum(a * a for a in vec_a))
+    norm_b = math.sqrt(sum(b * b for b in vec_b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 def _fallback_deterministic_embedding(text: str, dim: int = 1536) -> List[float]:
     """
     Zapasowy generator wektorów (gdy brak klucza OpenAI lub brak środków na koncie).
     Generuje znormalizowany wektor 1536D na bazie słów kluczowych i hashowania,
     zapewniając poprawne działanie operacji wektorowych w pgvector bez błędów.
     """
-    words = text.lower().split()
+    words = [w for w in re.split(r"[^\w]+", text.lower()) if w]
     vector = [0.0] * dim
     
     for word in words:
@@ -50,23 +65,33 @@ def _fallback_deterministic_embedding(text: str, dim: int = 1536) -> List[float]
     return vector
 
 
-def create_embedding(text: str) -> List[float]:
-    """
-    Tworzy embedding dla danego tekstu za pomocą OpenAI text-embedding-3-small.
-    W przypadku braku klucza używa bezpiecznego fallbacku deterministycznego.
-    """
+@lru_cache(maxsize=1024)
+def _get_embedding_tuple(clean_text: str) -> tuple:
+    """Pobiera embedding jako niezmienną krotkę z buforowaniem LRU."""
     client = get_openai_client()
     if client:
         try:
             response = client.embeddings.create(
                 model="text-embedding-3-small",
-                input=text.replace("\n", " "),
+                input=clean_text,
             )
-            return response.data[0].embedding
+            return tuple(response.data[0].embedding)
         except Exception as e:
             print(f"OpenAI embedding error: {e}. Falling back to deterministic embedding.")
 
-    return _fallback_deterministic_embedding(text)
+    return tuple(_fallback_deterministic_embedding(clean_text))
+
+
+def create_embedding(text: str) -> List[float]:
+    """
+    Tworzy embedding dla danego tekstu za pomocą OpenAI text-embedding-3-small
+    z LRU cache (1024 wpisy) i fallbackiem deterministycznym.
+    """
+    clean_text = " ".join(text.strip().split())
+    if not clean_text:
+        return [0.0] * 1536
+    return list(_get_embedding_tuple(clean_text))
+
 
 
 def generate_adaptation_plan(innovation_title: str, innovation_desc: str, context: str) -> str:
