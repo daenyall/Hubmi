@@ -1,10 +1,20 @@
-from typing import List
+from typing import List, Any, Optional
 from fastapi import APIRouter, HTTPException
 from app.db.supabase import get_supabase_client
 from app.models.schemas import MatchRequest, MatchResponse, MatchItem
 from app.services.ai import create_embedding
 
 router = APIRouter()
+
+
+def _to_str(val: Any) -> Optional[str]:
+    return str(val) if val is not None else None
+
+def _to_float(val: Any, default: float = 0.85) -> float:
+    try:
+        return float(val) if val is not None else default
+    except (ValueError, TypeError):
+        return default
 
 
 @router.post("/match", response_model=MatchResponse)
@@ -37,38 +47,42 @@ async def match_problem(request: MatchRequest):
                 }
             ).execute()
 
-            if rpc_res.data:
-                for row in rpc_res.data:
-                    matches.append(MatchItem(
-                        id=row["id"],
-                        title=row["title"],
-                        similarity_score=float(row.get("similarity_score", 0.85)),
-                        why_relevant=row.get("why_relevant"),
-                        source_url=row.get("source_url"),
-                        target_group=row.get("target_group"),
-                        category=row.get("category"),
-                        description=row.get("description"),
-                        status=row.get("status", "sprawdzone"),
-                    ))
+            data: Any = rpc_res.data
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict):
+                        matches.append(MatchItem(
+                            id=str(item.get("id", "")),
+                            title=str(item.get("title", "")),
+                            similarity_score=_to_float(item.get("similarity_score"), 0.85),
+                            why_relevant=_to_str(item.get("why_relevant")),
+                            source_url=_to_str(item.get("source_url")),
+                            target_group=_to_str(item.get("target_group")),
+                            category=_to_str(item.get("category")),
+                            description=_to_str(item.get("description")),
+                            status=str(item.get("status", "sprawdzone")),
+                        ))
         except Exception as e:
             print(f"Warning: RPC match_innovations failed or not created yet ({e}). Trying direct table query.")
             
             # Fallback: jeśli funkcja RPC nie została jeszcze wklejona w Supabase, pobierz innowacje z tabeli
             try:
                 table_res = supabase.table("innovations").select("*").limit(request.limit or 4).execute()
-                if table_res.data:
-                    for row in table_res.data:
-                        matches.append(MatchItem(
-                            id=row["id"],
-                            title=row["title"],
-                            similarity_score=0.88,
-                            why_relevant=row.get("why_relevant"),
-                            source_url=row.get("source_url"),
-                            target_group=row.get("target_group"),
-                            category=row.get("category"),
-                            description=row.get("description"),
-                            status=row.get("status", "sprawdzone"),
-                        ))
+                t_data: Any = table_res.data
+                if isinstance(t_data, list):
+                    for item in t_data:
+                        if isinstance(item, dict):
+                            matches.append(MatchItem(
+                                id=str(item.get("id", "")),
+                                title=str(item.get("title", "")),
+                                similarity_score=0.88,
+                                why_relevant=_to_str(item.get("why_relevant")),
+                                source_url=_to_str(item.get("source_url")),
+                                target_group=_to_str(item.get("target_group")),
+                                category=_to_str(item.get("category")),
+                                description=_to_str(item.get("description")),
+                                status=str(item.get("status", "sprawdzone")),
+                            ))
             except Exception as table_err:
                 print(f"Table query error: {table_err}")
 

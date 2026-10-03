@@ -1,6 +1,6 @@
 import hashlib
 import math
-from typing import List, Optional
+from typing import List, Optional, Any
 from app.core.config import settings
 
 # Inicjalizacja klienta OpenAI tylko jeśli klucz jest ustawiony
@@ -91,7 +91,7 @@ Przygotuj zwięzły, konkretny plan wdrożenia:
 4. Potencjalne źródła dofinansowania (np. Małopolski ROPS, FERS, fundusze sołeckie)
 5. Rekomendacja zminimalizowania barier dla seniorów i osób z niepełnosprawnościami (WCAG)."""
 
-            response = client.chat.completions.create(
+            response: Any = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
