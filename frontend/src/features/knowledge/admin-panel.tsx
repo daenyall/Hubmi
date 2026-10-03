@@ -15,7 +15,7 @@ import {
 import { createKnowledgeAdminService, knowledgeAdminMessage, type SaveResult } from "./admin-service";
 
 /** Publikacja w obecnym backendzie ustawia wyłącznie status; nie ukrywa pozostałych rekordów. */
-const VISIBILITY_NOTE = "Publiczny katalog „Zasobnik Wiedzy” pobiera obecnie wszystkie rekordy bez filtra statusu, więc wersje „Nowa” i „W weryfikacji” też są w nim widoczne. Publikacja ustawia status „sprawdzone” i nie ukrywa pozostałych wpisów.";
+const VISIBILITY_NOTE = "Publikacja ustawia wyłącznie status „sprawdzone”. Wyszukiwanie dopasowań pomija już rekordy niesprawdzone, ale publiczny katalog „Zasobnik Wiedzy” nadal pobiera wszystkie statusy, więc wersje „Nowa” i „W weryfikacji” są w nim widoczne.";
 
 type Feedback = { message: string; error: boolean } | null;
 

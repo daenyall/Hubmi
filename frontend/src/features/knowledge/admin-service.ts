@@ -15,8 +15,6 @@ export class KnowledgeAdminError extends Error {
 }
 /** Treść formularza nigdy nie jest czyszczona przez błąd — komunikaty to potwierdzają. */
 const KEEPS_CONTENT = "Wpisana treść pozostała w formularzu.";
-/** Backend nie udostępnia odczytu pojedynczej innowacji, więc potwierdzamy przez listę. */
-const CONFIRM_PAGES = 10;
 const NO_REREAD = "Operacja została przyjęta, ale ponowny odczyt nie znalazł rekordu na liście. Odśwież listę i sprawdź stan przed ponowieniem.";
 
 export function knowledgeAdminMessage(error: unknown): string {
@@ -66,10 +64,15 @@ export function createKnowledgeAdminService(client: SupabaseClient = createClien
     return token;
   }
 
-  async function call(path: string, init: { method?: string; body?: unknown }, writing: boolean, signal?: AbortSignal): Promise<unknown> {
+  async function callRaw(path: string, init: { method?: string; body?: unknown }, signal?: AbortSignal) {
     const token = await authorize(signal);
     const result = await requestBackendJson(path, { ...init, token, signal });
     signal?.throwIfAborted();
+    return result;
+  }
+
+  async function call(path: string, init: { method?: string; body?: unknown }, writing: boolean, signal?: AbortSignal): Promise<unknown> {
+    const result = await callRaw(path, init, signal);
     if (!result.ok) throw httpError(result.status, writing);
     return result.data;
   }
@@ -98,19 +101,18 @@ export function createKnowledgeAdminService(client: SupabaseClient = createClien
     }
   }
 
-  /** Ponowny odczyt: filtr statusu zawęża stronicowanie, bo API nie wyszukuje po id. */
-  async function findById(id: string, status: string | undefined, signal?: AbortSignal): Promise<AdminInnovation | null> {
-    for (let page = 0; page < CONFIRM_PAGES; page += 1) {
-      const rows = await list({ status, limit: KNOWLEDGE_PAGE_SIZE, offset: page * KNOWLEDGE_PAGE_SIZE }, signal);
-      const found = rows.find((row) => row.id === id);
-      if (found) return found;
-      if (rows.length < KNOWLEDGE_PAGE_SIZE) return null;
-    }
-    return null;
+  /** Ponowny odczyt rekordu po zapisie. 404 oznacza, że rekordu już nie ma, nie błąd odczytu. */
+  async function readOne(id: string, signal?: AbortSignal): Promise<AdminInnovation | null> {
+    const result = await callRaw(`/api/admin/innovations/${encodeURIComponent(id)}`, { method: "GET" }, signal);
+    if (result.status === 404) return null;
+    if (!result.ok) throw httpError(result.status, false);
+    const record = parseOne(result.data, false);
+    if (record.id !== id) throw new KnowledgeAdminError("response", "Usługa zwróciła inny rekord innowacji niż żądany.");
+    return record;
   }
 
   async function confirmDraft(returned: AdminInnovation, expected: InnovationDraft, signal?: AbortSignal): Promise<SaveResult> {
-    const found = await findById(returned.id, expected.status, signal);
+    const found = await readOne(returned.id, signal);
     if (!found) return { record: returned, confirmed: false, note: NO_REREAD };
     const diff = mismatchedFields(found, expected);
     return diff.length
@@ -149,7 +151,7 @@ export function createKnowledgeAdminService(client: SupabaseClient = createClien
       requireId(id);
       const returned = parseOne(await call(`/api/admin/innovations/${encodeURIComponent(id)}/publish`, { method: "POST" }, false, signal), true);
       if (returned.id !== id) throw new KnowledgeAdminError("response", "Usługa zwróciła inny rekord niż publikowany. Odśwież listę.");
-      const found = await findById(id, PUBLISHED_STATUS, signal) ?? await findById(id, undefined, signal);
+      const found = await readOne(id, signal);
       if (!found) return { record: returned, confirmed: false, note: NO_REREAD };
       return found.status === PUBLISHED_STATUS
         ? { record: found, confirmed: true, note: "" }

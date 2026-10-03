@@ -165,7 +165,7 @@ test("niepoprawny formularz nie wysyła żądania do API", async (t) => {
 
 test("dodanie innowacji potwierdza zapis ponownym odczytem rekordu", async (t) => {
   const { api } = service(t);
-  const calls = recorder(t, [json(row(), 201), json([row()])]);
+  const calls = recorder(t, [json(row(), 201), json(row())]);
   const result = await api.create(draft);
   assert.equal(result.confirmed, true);
   assert.equal(result.record.id, "inv_test01");
@@ -173,12 +173,13 @@ test("dodanie innowacji potwierdza zapis ponownym odczytem rekordu", async (t) =
   assert.equal(JSON.parse(calls[0].body).status, "nowa");
   assert.equal("id" in JSON.parse(calls[0].body), false);
   assert.equal("similarity_score" in JSON.parse(calls[0].body), false);
-  assert.equal(new URL(calls[1].url).searchParams.get("status"), "nowa");
+  assert.equal(calls[1].method, "GET");
+  assert.equal(new URL(calls[1].url).pathname, "/api/admin/innovations/inv_test01");
 });
 
-test("brak rekordu w ponownym odczycie nie jest raportowany jako sukces", async (t) => {
+test("404 w ponownym odczycie nie jest raportowane jako sukces", async (t) => {
   const { api } = service(t);
-  recorder(t, [json(row(), 201), json([])]);
+  recorder(t, [json(row(), 201), json({ detail: "brak" }, 404)]);
   const result = await api.create(draft);
   assert.equal(result.confirmed, false);
   assert.match(result.note, /ponowny odczyt/i);
@@ -186,7 +187,7 @@ test("brak rekordu w ponownym odczycie nie jest raportowany jako sukces", async 
 
 test("rozbieżność po ponownym odczycie wskazuje pole", async (t) => {
   const { api } = service(t);
-  recorder(t, [json(row()), json([row({ description: "Inna treść zapisana w bazie" })])]);
+  recorder(t, [json(row()), json(row({ description: "Inna treść zapisana w bazie" }))]);
   const result = await api.update("inv_test01", draft);
   assert.equal(result.confirmed, false);
   assert.match(result.note, /Opis/);
@@ -195,7 +196,7 @@ test("rozbieżność po ponownym odczycie wskazuje pole", async (t) => {
 test("edycja wysyła PUT na identyfikator rekordu i potwierdza zapis", async (t) => {
   const { api } = service(t);
   const changed = { ...draft, description: "Zmieniony opis testowy etapu 4" };
-  const calls = recorder(t, [json(row({ description: changed.description })), json([row({ description: changed.description })])]);
+  const calls = recorder(t, [json(row({ description: changed.description })), json(row({ description: changed.description }))]);
   const result = await api.update("inv_test01", changed);
   assert.equal(result.confirmed, true);
   assert.equal(calls[0].method, "PUT");
@@ -205,13 +206,15 @@ test("edycja wysyła PUT na identyfikator rekordu i potwierdza zapis", async (t)
 
 test("publikacja potwierdza status sprawdzone, a inny status zgłasza jako niepotwierdzony", async (t) => {
   const ok = service(t);
-  recorder(t, [json(row({ status: "sprawdzone" })), json([row({ status: "sprawdzone" })])]);
+  const calls = recorder(t, [json(row({ status: "sprawdzone" })), json(row({ status: "sprawdzone" }))]);
   const confirmed = await ok.api.publish("inv_test01");
   assert.equal(confirmed.confirmed, true);
   assert.equal(confirmed.record.status, "sprawdzone");
+  assert.equal(new URL(calls[0].url).pathname, "/api/admin/innovations/inv_test01/publish");
+  assert.equal(new URL(calls[1].url).pathname, "/api/admin/innovations/inv_test01");
   t.mock.restoreAll();
   const stuck = service(t);
-  recorder(t, [json(row({ status: "sprawdzone" })), json([]), json([row({ status: "nowa" })])]);
+  recorder(t, [json(row({ status: "sprawdzone" })), json(row({ status: "nowa" }))]);
   const result = await stuck.api.publish("inv_test01");
   assert.equal(result.confirmed, false);
   assert.match(result.note, /„nowa”/);
