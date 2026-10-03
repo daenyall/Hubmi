@@ -53,5 +53,5 @@ async def adapt_innovation(request: AdaptRequest):
         logger.error("Błąd generowania planu adaptacji: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=safe_error_message(e, "Wystąpił błąd podczas generowania planu adaptacji.")
+            detail=safe_error_message("plan adaptacji")
         )

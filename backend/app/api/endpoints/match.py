@@ -101,7 +101,7 @@ async def match_problem(request: MatchRequest, req: Request):
     # 3. Odpytanie procedury RPC match_innovations w Supabase
     try:
         rpc_limit = max(50, limit * 5)
-        rpc_params = {
+        rpc_params: dict[str, Any] = {
             "query_embedding": query_vector,
             "match_threshold": max(0.05, threshold - 0.15),
             "match_count": rpc_limit,
