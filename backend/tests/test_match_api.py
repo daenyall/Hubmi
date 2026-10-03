@@ -92,3 +92,23 @@ class TestMatchApi:
         assert "id" in first_item
         assert "title" in first_item
         assert "category" in first_item
+
+    def test_cors_localhost_allowed(self):
+        """Weryfikacja CORS dla lokalnego frontendu Next.js."""
+        headers = {
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "POST",
+        }
+        response = client.options("/api/match", headers=headers)
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+    def test_cors_vercel_regex_allowed(self):
+        """Weryfikacja CORS dla preview deploymentów Vercela Daniela."""
+        headers = {
+            "Origin": "https://hubmi-git-feat-frontend-daenyalls-projects.vercel.app",
+            "Access-Control-Request-Method": "POST",
+        }
+        response = client.options("/api/match", headers=headers)
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == "https://hubmi-git-feat-frontend-daenyalls-projects.vercel.app"

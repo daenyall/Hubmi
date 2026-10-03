@@ -1,9 +1,11 @@
+import logging
 from typing import List, Any, Optional
 from fastapi import APIRouter, HTTPException
 from app.db.supabase import get_supabase_client
 from app.models.schemas import MatchRequest, MatchResponse, MatchItem
 from app.services.ai import create_embedding
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 AVAILABLE_ROPS_CATEGORIES = [
@@ -102,7 +104,7 @@ async def match_problem(request: MatchRequest):
                     if len(matches) >= limit:
                         break
     except Exception as e:
-        print(f"Error: RPC match_innovations execution failed: {e}")
+        logger.error("RPC match_innovations execution failed: %s", e)
         raise HTTPException(
             status_code=502,
             detail=f"Błąd silnika wektorowego bazy danych: {str(e)}",

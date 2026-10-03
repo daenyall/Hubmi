@@ -88,7 +88,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-2. **Uruchomienie kompletnego pakietu 51 testów:**
+2. **Uruchomienie kompletnego pakietu 60 testów automatycznych:**
 ```bash
 pytest -v
 ```
@@ -102,3 +102,14 @@ uvicorn app.main:app --reload --port 8000
 
 - Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
 - ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+## Wdrożenie Produkcyjne (Docker / Render / PaaS)
+
+Backend jest w pełni przygotowany do natychmiastowego deploymentu w chmurze:
+- **Dockerfile**: Kontener produkcyjny oparty o `python:3.11-slim` z wbudowanym healthcheckiem i non-root userem (`appuser`).
+- **render.yaml**: Gotowy Blueprint 1-click do wdrożenia w serwisie Render.com.
+- **Procfile**: Wsparcie dla deploymentu na platformach PaaS (Railway, Heroku, Render).
+- **Szczegółowa instrukcja wdrożenia**: Zobacz [backend/docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md).
+- **Kontrakt API dla Frontendu**: Zobacz [backend/docs/API_CONTRACT_FOR_FRONTEND.md](docs/API_CONTRACT_FOR_FRONTEND.md).
+- **Analiza Kosztów TCO (ROPS Kraków)**: Zobacz [backend/docs/TCO_ESTIMATE.md](docs/TCO_ESTIMATE.md).
+- **Architektura Systemowa i Przewodnik Oceny (Jury)**: Zobacz [backend/docs/ARCHITECTURE_AND_EVALUATION.md](docs/ARCHITECTURE_AND_EVALUATION.md).
