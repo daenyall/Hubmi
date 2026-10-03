@@ -82,3 +82,88 @@ class AdaptRequest(BaseModel):
 class AdaptResponse(BaseModel):
     innovation_title: str
     adaptation_plan: str
+
+
+# ==============================================================================
+# MODELE OBSŁUGI ZGŁOSZEŃ, RÓL, STATUSÓW I AUDYTU (19:00 - 21:00)
+# ==============================================================================
+
+class SubmissionCreate(BaseModel):
+    title: str = Field("Fiszka innowacji społecznej", min_length=2, max_length=200, description="Tytuł innowacji/pomysłu")
+    problem_description: str = Field(..., min_length=3, max_length=10000, description="Opis problemu lub potrzeby")
+    solution_description: Optional[str] = Field("", max_length=10000, description="Istota proponowanego rozwiązania")
+    target_group: Optional[str] = Field("Mieszkańcy Małopolski", max_length=4000, description="Odbiorcy rozwiązania")
+    implementation_stage: str = Field("pomysl", description="Etap: pomysl, prototyp, pilotaz, wdrozenie")
+    institution_name: Optional[str] = Field(None, max_length=200, description="Nazwa instytucji (np. Gmina, NGO)")
+    applicant_type: str = Field("JST", description="Typ zgłaszającego: JST, NGO, CUS, Mieszkaniec")
+    applicant_name: Optional[str] = None
+    applicant_email: Optional[str] = None
+    matched_innovation_id: Optional[str] = None
+
+
+class SubmissionResponse(BaseModel):
+    id: str
+    user_id: Optional[str] = None
+    title: str = "Fiszka innowacji"
+    problem_description: str
+    solution_description: Optional[str] = None
+    target_group: Optional[str] = None
+    implementation_stage: str = "pomysl"
+    institution_name: Optional[str] = None
+    applicant_type: str = "JST"
+    applicant_name: Optional[str] = None
+    applicant_email: Optional[str] = None
+    matched_innovation_id: Optional[str] = None
+    status: str = "nowe"
+    official_response: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class SubmissionStatusUpdate(BaseModel):
+    status: str = Field(
+        ...,
+        description="Nowy status zgłoszenia: 'nowe', 'weryfikacja', 'zaakceptowane', 'odrzucone'",
+    )
+    official_response: Optional[str] = Field(
+        None,
+        description="Oficjalna informacja zwrotna od eksperta ROPS Kraków",
+    )
+    notes: Optional[str] = Field(
+        None,
+        description="Wewnętrzne notatki urzędowe ROPS",
+    )
+
+
+class SubmissionEventResponse(BaseModel):
+    id: str
+    submission_id: str
+    old_status: Optional[str] = None
+    new_status: str
+    changed_by: str
+    comment: Optional[str] = None
+    webhook_dispatched: bool = False
+    created_at: Optional[str] = None
+
+
+class MessageCreate(BaseModel):
+    message: str = Field(..., min_length=1, max_length=5000, description="Treść wiadomości w wątku")
+    sender_name: Optional[str] = Field(None, description="Imię lub rola nadawcy")
+
+
+class MessageItemResponse(BaseModel):
+    id: str
+    submission_id: str
+    sender_role: str = "applicant"  # 'applicant', 'rops_admin', 'mentor'
+    sender_name: str
+    message: str
+    created_at: Optional[str] = None
+
+
+class NotificationResult(BaseModel):
+    success: bool
+    email_sent: bool
+    webhook_sent: bool
+    message: str
+    event_id: Optional[str] = None
