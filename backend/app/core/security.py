@@ -79,12 +79,10 @@ def get_current_user(
                     email = u.email or ""
                     app_meta = u.app_metadata or {}
 
-                    # Rola ROPS musi pochodzić wyłącznie z zaufanego app_metadata serwerowego
-                    # (lub zweryfikowanego adresu w domenie @rops.krakow.pl dla nie-anonimowych kont)
+                    # Rola ROPS musi pochodzić wyłącznie z zaufanego app_metadata serwerowego (hubmi_role)
                     is_admin = bool(
                         app_meta.get("hubmi_role") == "rops_admin"
                         or app_meta.get("role") == "rops_admin"
-                        or email.lower().endswith("@rops.krakow.pl")
                     )
                     role = "rops_admin" if is_admin else "applicant"
                     return UserSession(

@@ -195,6 +195,7 @@ async def get_submission_messages(
             MessageItemResponse(
                 id=str(m.get("id", "")),
                 submission_id=str(m.get("submission_id", "")),
+                sender_id=str(m.get("sender_id")) if m.get("sender_id") is not None else None,
                 sender_role=str(m.get("sender_role", "applicant")),
                 sender_name=str(m.get("sender_name", "Użytkownik")),
                 message=str(m.get("message", "")),
@@ -217,7 +218,7 @@ async def post_submission_message(
 ):
     """
     Dodaje nową wiadomość do wątku konsultacji fiszki z ROPS Kraków.
-    Automatycznie przypisuje rolę nadawcy: 'rops_admin' lub 'applicant'.
+    Automatycznie przypisuje rolę nadawcy: 'rops_admin' lub 'applicant' oraz sender_id.
     """
     supabase = get_supabase_client()
     if not supabase:
@@ -246,15 +247,18 @@ async def post_submission_message(
 
     sender_role = "rops_admin" if user.is_admin else "applicant"
     sender_name = payload.sender_name or ("Ekspert ROPS Kraków" if user.is_admin else "Autor zgłoszenia")
+    sender_id = user.user_id if user.user_id and user.user_id != "anonymous_applicant" else None
 
     msg_id = str(uuid.uuid4())
-    row = {
+    row: Dict[str, Any] = {
         "id": msg_id,
         "submission_id": submission_id,
         "sender_role": sender_role,
         "sender_name": sender_name,
         "message": payload.message.strip(),
     }
+    if sender_id:
+        row["sender_id"] = sender_id
 
     try:
         res = supabase.table("submission_messages").insert(row).execute()
@@ -268,6 +272,7 @@ async def post_submission_message(
         return MessageItemResponse(
             id=str(inserted.get("id", "")),
             submission_id=str(inserted.get("submission_id", "")),
+            sender_id=str(inserted.get("sender_id", sender_id or "")) if (inserted.get("sender_id") or sender_id) else None,
             sender_role=str(inserted.get("sender_role", sender_role)),
             sender_name=str(inserted.get("sender_name", sender_name)),
             message=str(inserted.get("message", payload.message)),
