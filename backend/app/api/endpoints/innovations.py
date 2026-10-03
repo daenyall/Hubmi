@@ -13,12 +13,13 @@ def _to_str(val: Any) -> Optional[str]:
 @router.get("/innovations", response_model=List[MatchItem])
 async def list_innovations(
     category: Optional[str] = Query(None, description="Filtruj według kategorii (np. Seniorzy, Dostępność)"),
+    status: Optional[str] = Query(None, description="Filtruj według statusu (np. 'sprawdzone')"),
     limit: int = Query(50, ge=1, le=100, description="Maksymalna liczba zwróconych innowacji"),
     offset: int = Query(0, ge=0, description="Przesunięcie paginacji"),
 ):
     """
     Pobiera listę zaimportowanych innowacji społecznych ROPS Kraków.
-    Umożliwia przeglądanie bazy, filtrowanie po kategorii oraz paginację.
+    Umożliwia przeglądanie bazy, filtrowanie po kategorii, statusie oraz paginację.
     """
     supabase = get_supabase_client()
     if not supabase:
@@ -30,6 +31,8 @@ async def list_innovations(
         )
         if category:
             query = query.eq("category", category)
+        if status:
+            query = query.eq("status", status)
 
         res = query.range(offset, offset + limit - 1).execute()
         data: Any = res.data or []
@@ -52,5 +55,46 @@ async def list_innovations(
                         )
                     )
         return items
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Błąd bazy danych: {str(e)}")
+
+
+@router.get("/innovations/{innovation_id}", response_model=MatchItem)
+async def get_innovation_by_id(innovation_id: str):
+    """
+    Pobiera pojedynczą innowację społeczną po jej identyfikatorze ID.
+    Jeśli innowacja nie istnieje, zwraca status 404.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Baza danych Supabase nie jest skonfigurowana.")
+
+    try:
+        res = (
+            supabase.table("innovations")
+            .select("id, title, description, target_group, category, why_relevant, source_url, status")
+            .eq("id", innovation_id)
+            .execute()
+        )
+        data: Any = res.data or []
+        if not data or not isinstance(data, list) or len(data) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Innowacja o identyfikatorze '{innovation_id}' nie została odnaleziona.",
+            )
+        row = data[0]
+        return MatchItem(
+            id=str(row.get("id", "")).strip(),
+            title=str(row.get("title", "")).strip(),
+            similarity_score=1.0,
+            why_relevant=_to_str(row.get("why_relevant")),
+            source_url=_to_str(row.get("source_url")),
+            target_group=_to_str(row.get("target_group")),
+            category=_to_str(row.get("category")),
+            description=_to_str(row.get("description")),
+            status=str(row.get("status", "sprawdzone")).strip(),
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Błąd bazy danych: {str(e)}")

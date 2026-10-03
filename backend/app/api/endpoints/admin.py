@@ -402,6 +402,35 @@ async def create_admin_innovation(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Błąd zapisu innowacji: {str(e)}")
 
+@router.get("/innovations/{innovation_id}", response_model=MatchItem)
+async def get_admin_innovation_by_id(
+    innovation_id: str,
+    admin: UserSession = Depends(require_rops_admin),
+):
+    """
+    Pobiera pojedynczą innowację z Bazy Wiedzy dla Administratora ROPS.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Baza danych Supabase jest niedostępna.")
+
+    curr_res = supabase.table("innovations").select("*").eq("id", innovation_id).execute()
+    curr_list = _to_dict_list(curr_res.data)
+    if not curr_list:
+        raise HTTPException(status_code=404, detail="Innowacja nie została odnaleziona.")
+    curr = curr_list[0]
+    return MatchItem(
+        id=str(curr.get("id", innovation_id)),
+        title=str(curr.get("title", "")),
+        similarity_score=1.0,
+        why_relevant=curr.get("why_relevant"),
+        source_url=curr.get("source_url"),
+        target_group=curr.get("target_group"),
+        category=curr.get("category"),
+        description=curr.get("description"),
+        status=str(curr.get("status", "sprawdzone")),
+    )
+
 
 @router.put("/innovations/{innovation_id}", response_model=MatchItem)
 async def update_admin_innovation(
