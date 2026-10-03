@@ -162,6 +162,7 @@ class MessageCreate(BaseModel):
 class MessageItemResponse(BaseModel):
     id: str
     submission_id: str
+    sender_id: Optional[str] = None
     sender_role: str = "applicant"  # 'applicant', 'rops_admin', 'mentor'
     sender_name: str
     message: str
@@ -261,4 +262,31 @@ class TestingGlobalSummary(BaseModel):
     overall_avg_rating: float
     top_rated_innovations: list[Dict[str, Any]] = Field(default_factory=list)
     applications_by_status: Dict[str, int] = Field(default_factory=dict)
+
+
+# ==============================================================================
+# MODELE ZARZĄDZANIA WIEDZĄ (PUNKT VI: PANEL ADMINISTRATORA ROPS)
+# ==============================================================================
+
+class InnovationCreate(BaseModel):
+    id: Optional[str] = Field(None, description="Identyfikator innowacji (np. 'inv_07'). Jeśli brak, generowany automatycznie.")
+    title: str = Field(..., min_length=3, max_length=200, description="Nazwa innowacji społecznej")
+    description: str = Field(..., min_length=10, max_length=10000, description="Pełny opis innowacji")
+    target_group: str = Field(..., min_length=3, max_length=4000, description="Grupa docelowa (odbiorcy)")
+    category: str = Field(default="Inne", description="Kategoria (np. Seniorzy, Dostępność, Zdrowie psychiczne)")
+    why_relevant: Optional[str] = Field(None, description="Uzasadnienie / dlaczego warto")
+    source_url: Optional[str] = Field(None, description="Zweryfikowane źródło / link do strony ROPS")
+    status: str = Field(default="sprawdzone", description="Status wiedzy: 'nowa', 'weryfikacja', 'sprawdzone'")
+    author_or_institution: Optional[str] = Field(default="ROPS Kraków", description="Instytucja / autor innowacji")
+
+
+class InnovationUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=3, max_length=200)
+    description: Optional[str] = Field(None, min_length=10)
+    target_group: Optional[str] = Field(None, min_length=3)
+    category: Optional[str] = None
+    why_relevant: Optional[str] = None
+    source_url: Optional[str] = None
+    status: Optional[str] = None
+    author_or_institution: Optional[str] = None
 

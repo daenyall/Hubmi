@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
@@ -10,12 +11,52 @@ client = TestClient(app)
 class TestInnovationTesting:
     """Testy modułu Testera Innowacji Społecznych w Małopolsce (Punkt IV Wyzwania ROPS Kraków)."""
 
+    test_inv_id: str = ""
+    test_inv_id_2: str = ""
+    sb: Any = None
+
+    @classmethod
+    def setup_class(cls):
+        from app.db.supabase import get_supabase_client
+        cls.sb = get_supabase_client()
+        cls.test_inv_id = f"inv_t_{uuid.uuid4().hex[:6]}"
+        cls.test_inv_id_2 = f"inv_t_{uuid.uuid4().hex[:6]}"
+        if cls.sb:
+            cls.sb.table("innovations").insert([
+                {
+                    "id": cls.test_inv_id,
+                    "title": "Test Innowacja 1",
+                    "description": "Opis innowacji testowej",
+                    "target_group": "Testerzy",
+                    "category": "Test",
+                    "status": "sprawdzone",
+                },
+                {
+                    "id": cls.test_inv_id_2,
+                    "title": "Test Innowacja 2",
+                    "description": "Opis innowacji testowej 2",
+                    "target_group": "Testerzy",
+                    "category": "Test",
+                    "status": "sprawdzone",
+                },
+            ]).execute()
+
+    @classmethod
+    def teardown_class(cls):
+        if cls.sb:
+            try:
+                cls.sb.table("innovation_feedback").delete().in_("innovation_id", [cls.test_inv_id, cls.test_inv_id_2]).execute()
+                cls.sb.table("innovation_test_applications").delete().in_("innovation_id", [cls.test_inv_id, cls.test_inv_id_2]).execute()
+                cls.sb.table("innovations").delete().in_("id", [cls.test_inv_id, cls.test_inv_id_2]).execute()
+            except Exception:
+                pass
+
     def test_apply_validation_missing_institution(self):
         """Brak nazwy instytucji skutkuje błędem 400 Bad Request."""
         res = client.post(
             "/api/testing/apply",
             json={
-                "innovation_id": "inv-senior-1",
+                "innovation_id": self.test_inv_id,
                 "institution_name": "   ",
                 "contact_person": "Jan Kowalski",
                 "contact_email": "jan@wieliczka.pl",
@@ -29,7 +70,7 @@ class TestInnovationTesting:
         res = client.post(
             "/api/testing/apply",
             json={
-                "innovation_id": "inv-senior-1",
+                "innovation_id": self.test_inv_id,
                 "institution_name": "Gmina Wieliczka",
                 "contact_person": "Jan Kowalski",
                 "contact_email": "nie-email",
@@ -40,7 +81,7 @@ class TestInnovationTesting:
 
     def test_apply_successful_creation(self):
         """Poprawne zgłoszenie chęci testowania zwraca kod 201 i domyślny status 'nowe'."""
-        inv_id = f"test-inv-{uuid.uuid4().hex[:6]}"
+        inv_id = self.test_inv_id
         payload = {
             "innovation_id": inv_id,
             "tester_type": "JST",
@@ -63,7 +104,7 @@ class TestInnovationTesting:
 
     def test_list_applications_and_filtering(self):
         """Pobieranie listy aplikacji wspiera filtrowanie po statusie i ID innowacji."""
-        target_inv = f"inv-{uuid.uuid4().hex[:6]}"
+        target_inv = self.test_inv_id
         res1 = client.post(
             "/api/testing/apply",
             json={
@@ -100,7 +141,7 @@ class TestInnovationTesting:
 
     def test_get_application_by_id(self):
         """Pobieranie pojedynczej aplikacji po ID wymaga uprawnień ROPS (ochrona danych) i zwraca 404 dla nieistniejącej."""
-        inv_id = f"inv-{uuid.uuid4().hex[:6]}"
+        inv_id = self.test_inv_id
         create_res = client.post(
             "/api/testing/apply",
             json={
@@ -130,7 +171,7 @@ class TestInnovationTesting:
 
     def test_patch_status_authorization(self):
         """Tylko administrator ROPS może zmienić status testu innowacji."""
-        inv_id = f"inv-{uuid.uuid4().hex[:6]}"
+        inv_id = self.test_inv_id
         create_res = client.post(
             "/api/testing/apply",
             json={
@@ -173,7 +214,7 @@ class TestInnovationTesting:
 
     def test_submit_feedback_and_scoring(self):
         """Dodanie recenzji wylicza poprawną średnią ważoną i zapisuje wskaźniki."""
-        inv_id = f"inv-eval-{uuid.uuid4().hex[:6]}"
+        inv_id = self.test_inv_id
         res = client.post(
             "/api/testing/feedback",
             json={
@@ -198,7 +239,7 @@ class TestInnovationTesting:
 
     def test_feedback_summary_aggregation(self):
         """Raport podsumowujący poprawnie agreguje wiele opinii i wskaźnik rekomendacji."""
-        target_inv = f"inv-multi-{uuid.uuid4().hex[:6]}"
+        target_inv = self.test_inv_id_2
 
         # Opinia 1: 5, 5, 5 (rekomenduje: True)
         client.post(

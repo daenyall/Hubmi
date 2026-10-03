@@ -35,7 +35,14 @@ async def get_my_submissions(
     """
     Pobiera listę zgłoszeń należących do aktualnie zalogowanego użytkownika (autor).
     Jeśli użytkownik to Administrator ROPS, zwraca wszystkie zgłoszenia.
+    Wymaga zalogowanego użytkownika (nie-anonimowego).
     """
+    if not user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Wymagane jest zalogowanie, aby odczytać swoje zgłoszenia.",
+        )
+
     supabase = get_supabase_client()
     if not supabase:
         raise HTTPException(
@@ -46,8 +53,6 @@ async def get_my_submissions(
     try:
         query = supabase.table("submissions").select("*")
         if not user.is_admin:
-            if not user.user_id or user.user_id == "anonymous_applicant":
-                return []
             query = query.eq("user_id", user.user_id)
 
         res = query.order("created_at", desc=True).execute()
@@ -88,6 +93,12 @@ async def create_submission(
     user: UserSession = Depends(get_current_user),
 ):
     """Tworzy nowe zgłoszenie / fiszkę innowacji w bazie Supabase."""
+    if not user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Wymagane jest zalogowanie, aby złożyć fiszkę innowacji.",
+        )
+
     supabase = get_supabase_client()
     if not supabase:
         raise HTTPException(
@@ -96,8 +107,9 @@ async def create_submission(
         )
 
     sub_id = str(uuid.uuid4())
-    row_data = {
+    row_data: Dict[str, Any] = {
         "id": sub_id,
+        "user_id": user.user_id,
         "title": payload.title.strip(),
         "problem_description": payload.problem_description.strip(),
         "solution_description": payload.solution_description.strip() if payload.solution_description else "",
@@ -109,9 +121,9 @@ async def create_submission(
         "applicant_email": payload.applicant_email,
         "matched_innovation_id": payload.matched_innovation_id,
         "status": "nowe",
+        "official_response": None,
+        "notes": None,
     }
-    if user.user_id and user.user_id != "anonymous_applicant":
-        row_data["user_id"] = user.user_id
 
     try:
         res = supabase.table("submissions").insert(row_data).execute()
@@ -164,6 +176,13 @@ async def get_submission_messages(
             detail="Baza danych Supabase jest niedostępna.",
         )
 
+    # Weryfikacja zalogowania
+    if not user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Wymagane jest zalogowanie, aby odczytać wątek dyskusji.",
+        )
+
     # Weryfikacja uprawnień do tego zgłoszenia
     sub_res = supabase.table("submissions").select("id, user_id").eq("id", submission_id).execute()
     sub_list = _to_dict_list(sub_res.data)
@@ -176,7 +195,7 @@ async def get_submission_messages(
 
     # Sprawdzenie czy użytkownik to autor lub admin
     if not user.is_admin:
-        if not user.user_id or user.user_id != sub.get("user_id"):
+        if user.user_id != sub.get("user_id"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Brak dostępu do wątku dyskusji tego zgłoszenia.",
@@ -195,6 +214,7 @@ async def get_submission_messages(
             MessageItemResponse(
                 id=str(m.get("id", "")),
                 submission_id=str(m.get("submission_id", "")),
+                sender_id=str(m.get("sender_id")) if m.get("sender_id") is not None else None,
                 sender_role=str(m.get("sender_role", "applicant")),
                 sender_name=str(m.get("sender_name", "Użytkownik")),
                 message=str(m.get("message", "")),
@@ -217,8 +237,14 @@ async def post_submission_message(
 ):
     """
     Dodaje nową wiadomość do wątku konsultacji fiszki z ROPS Kraków.
-    Automatycznie przypisuje rolę nadawcy: 'rops_admin' lub 'applicant'.
+    Automatycznie przypisuje rolę nadawcy: 'rops_admin' lub 'applicant' oraz serwerowe sender_name.
     """
+    if not user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Wymagane jest zalogowanie, aby wysłać wiadomość.",
+        )
+
     supabase = get_supabase_client()
     if not supabase:
         raise HTTPException(
@@ -238,23 +264,28 @@ async def post_submission_message(
 
     # Sprawdzenie uprawnień
     if not user.is_admin:
-        if not user.user_id or user.user_id != sub.get("user_id"):
+        if user.user_id != sub.get("user_id"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Brak uprawnień do komentowania tego zgłoszenia.",
             )
 
     sender_role = "rops_admin" if user.is_admin else "applicant"
-    sender_name = payload.sender_name or ("Ekspert ROPS Kraków" if user.is_admin else "Autor zgłoszenia")
+    # Serwerowe ustalanie sender_name: zignoruj jakąkolwiek nazwę podaną przez klienta
+    sender_name = user.email or ("Ekspert ROPS Kraków" if user.is_admin else "Wnioskodawca")
+    sender_id = user.user_id
 
     msg_id = str(uuid.uuid4())
-    row = {
+    row: Dict[str, Any] = {
         "id": msg_id,
         "submission_id": submission_id,
+        "sender_id": sender_id,
         "sender_role": sender_role,
         "sender_name": sender_name,
         "message": payload.message.strip(),
     }
+    if sender_id:
+        row["sender_id"] = sender_id
 
     try:
         res = supabase.table("submission_messages").insert(row).execute()
@@ -268,6 +299,7 @@ async def post_submission_message(
         return MessageItemResponse(
             id=str(inserted.get("id", "")),
             submission_id=str(inserted.get("submission_id", "")),
+            sender_id=str(inserted.get("sender_id", sender_id or "")) if (inserted.get("sender_id") or sender_id) else None,
             sender_role=str(inserted.get("sender_role", sender_role)),
             sender_name=str(inserted.get("sender_name", sender_name)),
             message=str(inserted.get("message", payload.message)),

@@ -18,15 +18,16 @@ def get_current_user(
     authorization: Optional[str] = Header(None),
     x_admin_role: Optional[str] = Header(None, alias="X-Admin-Role"),
     x_rops_key: Optional[str] = Header(None, alias="X-ROPS-Key"),
-    x_submission_token: Optional[str] = Header(None, alias="X-Submission-Token"),
 ) -> UserSession:
     """
     Weryfikuje tożsamość użytkownika na podstawie kryptograficznie zweryfikowanego tokena Supabase JWT.
     
-    Zabezpieczenia (odpowiedź na wytyczne bezpieczeństwa etapu 3):
-    1. Brak akceptacji niesprawdzonego nagłówka X-Admin-Role w środowisku produkcyjnym (dozwolony wyłącznie w testach jednostkowych pytest).
+    Zabezpieczenia:
+    1. Brak akceptacji niesprawdzonego nagłówka X-Admin-Role w środowisku produkcyjnym (wyłącznie w testach jednostkowych pytest).
     2. Wymóg weryfikacji podpisu cyfrowego tokena Bearer przez Supabase Auth (supabase.auth.get_user(token)).
-    3. Rola ROPS musi pochodzić wyłącznie z zaufanego app_metadata (lub zweryfikowanego emaila @rops.krakow.pl dla kont nie-anonimowych). User_metadata nie daje uprawnień admina.
+    3. Rola ROPS musi pochodzić wyłącznie z zaufanego app_metadata (hubmi_role == 'rops_admin').
+    4. Całkowite odrzucenie kont anonimowych (is_anonymous=True).
+    5. Całkowity brak akceptacji X-Submission-Token jako identyfikatora tożsamości.
     """
     is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
 
@@ -68,8 +69,8 @@ def get_current_user(
                 user_res = supabase.auth.get_user(token)
                 if user_res and user_res.user:
                     u = user_res.user
-                    # Odrzucenie kont anonimowych próbujących uzyskać dostęp do panelu
-                    if getattr(u, "is_anonymous", False):
+                    # Bezwzględne odrzucenie kont anonimowych próbujących uzyskać autoryzację
+                    if getattr(u, "is_anonymous", False) or (getattr(u, "app_metadata", {}) or {}).get("provider") == "anonymous":
                         raise HTTPException(
                             status_code=status.HTTP_403_FORBIDDEN,
                             detail="Konto anonimowe nie posiada uprawnień do operacji autoryzowanych.",
@@ -79,12 +80,10 @@ def get_current_user(
                     email = u.email or ""
                     app_meta = u.app_metadata or {}
 
-                    # Rola ROPS musi pochodzić wyłącznie z zaufanego app_metadata serwerowego
-                    # (lub zweryfikowanego adresu w domenie @rops.krakow.pl dla nie-anonimowych kont)
+                    # Rola ROPS musi pochodzić wyłącznie z zaufanego app_metadata serwerowego (hubmi_role)
                     is_admin = bool(
                         app_meta.get("hubmi_role") == "rops_admin"
                         or app_meta.get("role") == "rops_admin"
-                        or email.lower().endswith("@rops.krakow.pl")
                     )
                     role = "rops_admin" if is_admin else "applicant"
                     return UserSession(
@@ -113,14 +112,27 @@ def get_current_user(
                 detail="Serwer autoryzacji Supabase jest niedostępny.",
             )
 
-    # 4. Użytkownik nieautoryzowany / anonimowy wnioskodawca
-    token_str = x_submission_token if isinstance(x_submission_token, str) else None
+    # 4. Użytkownik nieautoryzowany / anonimowy (brak user_id, brak dostępu do danych prywatnych)
     return UserSession(
-        user_id=token_str or "anonymous_applicant",
+        user_id=None,
         email=None,
-        role="applicant",
+        role="anonymous",
         is_admin=False,
     )
+
+
+def require_authenticated_user(
+    user: UserSession = Depends(get_current_user),
+) -> UserSession:
+    """
+    Zależność FastAPI (Depends) wymagająca zweryfikowanego użytkownika (nie-anonimowego).
+    """
+    if not user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Wymagane jest zalogowanie, aby uzyskać dostęp do tej operacji.",
+        )
+    return user
 
 
 def require_rops_admin(

@@ -30,11 +30,6 @@ def _to_dict(data: Any) -> Dict[str, Any]:
     return {}
 
 
-# Magazyn pamięci podręcznej wykorzystywany WYŁĄCZNIE w testach jednostkowych (pytest)
-# gdy baza danych w chmurze nie posiada jeszcze wykonanej migracji SQL
-_fallback_applications: Dict[str, Dict[str, Any]] = {}
-_fallback_feedbacks: Dict[str, Dict[str, Any]] = {}
-
 
 def apply_for_testing(data: TestApplicationCreate) -> TestApplicationResponse:
     """
@@ -83,29 +78,18 @@ def apply_for_testing(data: TestApplicationCreate) -> TestApplicationResponse:
                     updated_at=str(inserted.get("updated_at") or now_str),
                 )
             raise RuntimeError("Supabase returned empty data on insert.")
+        except HTTPException:
+            raise
         except Exception as e:
-            is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
-            if is_test_runner and ("PGRST205" in str(e) or "PGRST204" in str(e)):
-                # Izolowane środowisko testowe CI
-                _fallback_applications[app_id] = row_data
-                return TestApplicationResponse(
-                    id=app_id,
-                    innovation_id=data.innovation_id,
-                    tester_type=data.tester_type,
-                    institution_name=data.institution_name,
-                    contact_person=data.contact_person,
-                    contact_email=data.contact_email,
-                    contact_phone=data.contact_phone,
-                    testing_scope=data.testing_scope,
-                    target_audience_count=data.target_audience_count,
-                    status="nowe",
-                    notes=data.notes,
-                    created_at=now_str,
-                    updated_at=now_str,
+            err_str = str(e)
+            if "23503" in err_str:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Innowacja o ID '{data.innovation_id}' nie istnieje w bazie wiedzy ROPS.",
                 )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Błąd trwałego zapisu zgłoszenia w bazie Supabase: {e}. Upewnij się, że migracja 04_innovation_testing.sql została zaaplikowana w Supabase.",
+                detail=f"Błąd trwałego zapisu zgłoszenia w bazie Supabase: {e}.",
             )
 
     raise HTTPException(
@@ -154,34 +138,6 @@ def list_applications(
                 )
             return results
         except Exception as e:
-            is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
-            if is_test_runner and ("PGRST205" in str(e) or "PGRST204" in str(e)):
-                # Fallback w testach
-                filtered = list(_fallback_applications.values())
-                if innovation_id:
-                    filtered = [a for a in filtered if a.get("innovation_id") == innovation_id]
-                if status_filter:
-                    filtered = [a for a in filtered if a.get("status") == status_filter]
-                filtered.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
-                for r in filtered[:limit]:
-                    results.append(
-                        TestApplicationResponse(
-                            id=str(r.get("id")),
-                            innovation_id=str(r.get("innovation_id")),
-                            tester_type=str(r.get("tester_type", "JST")),
-                            institution_name=str(r.get("institution_name", "")),
-                            contact_person=str(r.get("contact_person", "")),
-                            contact_email=str(r.get("contact_email", "")),
-                            contact_phone=r.get("contact_phone"),
-                            testing_scope=str(r.get("testing_scope", "pilotaz_3m")),
-                            target_audience_count=int(r.get("target_audience_count") or 20),
-                            status=str(r.get("status", "nowe")),
-                            notes=r.get("notes"),
-                            created_at=r.get("created_at"),
-                            updated_at=r.get("updated_at"),
-                        )
-                    )
-                return results
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Błąd odczytu zgłoszeń testowych z bazy Supabase: {e}.",
@@ -224,26 +180,6 @@ def get_application_by_id(application_id: str) -> Optional[TestApplicationRespon
                 )
             return None
         except Exception as e:
-            is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
-            if is_test_runner and ("PGRST205" in str(e) or "PGRST204" in str(e)):
-                if application_id in _fallback_applications:
-                    r = _fallback_applications[application_id]
-                    return TestApplicationResponse(
-                        id=str(r.get("id")),
-                        innovation_id=str(r.get("innovation_id")),
-                        tester_type=str(r.get("tester_type", "JST")),
-                        institution_name=str(r.get("institution_name", "")),
-                        contact_person=str(r.get("contact_person", "")),
-                        contact_email=str(r.get("contact_email", "")),
-                        contact_phone=r.get("contact_phone"),
-                        testing_scope=str(r.get("testing_scope", "pilotaz_3m")),
-                        target_audience_count=int(r.get("target_audience_count") or 20),
-                        status=str(r.get("status", "nowe")),
-                        notes=r.get("notes"),
-                        created_at=r.get("created_at"),
-                        updated_at=r.get("updated_at"),
-                    )
-                return None
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Błąd odczytu zgłoszenia testowego z bazy Supabase: {e}.",
@@ -295,30 +231,6 @@ def update_application_status(
                 )
             return None
         except Exception as e:
-            is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
-            if is_test_runner and ("PGRST205" in str(e) or "PGRST204" in str(e)):
-                if application_id in _fallback_applications:
-                    _fallback_applications[application_id]["status"] = update_data.status
-                    _fallback_applications[application_id]["updated_at"] = now_str
-                    if update_data.notes is not None:
-                        _fallback_applications[application_id]["notes"] = update_data.notes
-                    r = _fallback_applications[application_id]
-                    return TestApplicationResponse(
-                        id=str(r.get("id")),
-                        innovation_id=str(r.get("innovation_id")),
-                        tester_type=str(r.get("tester_type", "JST")),
-                        institution_name=str(r.get("institution_name", "")),
-                        contact_person=str(r.get("contact_person", "")),
-                        contact_email=str(r.get("contact_email", "")),
-                        contact_phone=r.get("contact_phone"),
-                        testing_scope=str(r.get("testing_scope", "pilotaz_3m")),
-                        target_audience_count=int(r.get("target_audience_count") or 20),
-                        status=str(r.get("status")),
-                        notes=r.get("notes"),
-                        created_at=r.get("created_at"),
-                        updated_at=r.get("updated_at"),
-                    )
-                return None
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Błąd aktualizacji statusu w bazie Supabase: {e}.",
@@ -385,27 +297,14 @@ def submit_feedback(data: TestFeedbackCreate) -> TestFeedbackResponse:
                     created_at=str(inserted.get("created_at") or now_str),
                 )
             raise RuntimeError("Supabase returned empty data on feedback insert.")
+        except HTTPException:
+            raise
         except Exception as e:
-            is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
-            if is_test_runner and ("PGRST205" in str(e) or "PGRST204" in str(e)):
-                _fallback_feedbacks[feedback_id] = row_data
-                if data.application_id and data.application_id in _fallback_applications:
-                    _fallback_applications[data.application_id]["status"] = "zakonczone"
-                    _fallback_applications[data.application_id]["updated_at"] = now_str
-                return TestFeedbackResponse(
-                    id=feedback_id,
-                    innovation_id=data.innovation_id,
-                    application_id=data.application_id,
-                    rating_usability=data.rating_usability,
-                    rating_effectiveness=data.rating_effectiveness,
-                    rating_accessibility=data.rating_accessibility,
-                    average_score=avg_score,
-                    pros=data.pros,
-                    cons_and_barriers=data.cons_and_barriers,
-                    suggested_improvements=data.suggested_improvements,
-                    would_recommend=data.would_recommend,
-                    author_name=data.author_name,
-                    created_at=now_str,
+            err_str = str(e)
+            if "23503" in err_str:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Innowacja lub zgłoszenie powiązane z oceną nie istnieje.",
                 )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -459,32 +358,6 @@ def list_feedbacks_for_innovation(
                 )
             return feedbacks
         except Exception as err:
-            is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
-            if is_test_runner and ("PGRST205" in str(err) or "PGRST204" in str(err)):
-                filtered = [f for f in _fallback_feedbacks.values() if f.get("innovation_id") == innovation_id]
-                filtered.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
-                for r in filtered[:limit]:
-                    u = int(r.get("rating_usability") or 3)
-                    e = int(r.get("rating_effectiveness") or 3)
-                    a = int(r.get("rating_accessibility") or 3)
-                    feedbacks.append(
-                        TestFeedbackResponse(
-                            id=str(r.get("id")),
-                            innovation_id=str(r.get("innovation_id")),
-                            application_id=r.get("application_id"),
-                            rating_usability=u,
-                            rating_effectiveness=e,
-                            rating_accessibility=a,
-                            average_score=round((u + e + a) / 3.0, 2),
-                            pros=r.get("pros"),
-                            cons_and_barriers=r.get("cons_and_barriers"),
-                            suggested_improvements=r.get("suggested_improvements"),
-                            would_recommend=bool(r.get("would_recommend", True)),
-                            author_name=str(r.get("author_name", "Anonim")),
-                            created_at=r.get("created_at"),
-                        )
-                    )
-                return feedbacks
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Błąd odczytu ocen z bazy Supabase: {err}.",
@@ -584,28 +457,7 @@ def get_testing_global_summary() -> TestingGlobalSummary:
         except Exception:
             pass
 
-    if not all_feedbacks and _fallback_feedbacks:
-        for r in _fallback_feedbacks.values():
-            u = int(r.get("rating_usability") or 3)
-            e = int(r.get("rating_effectiveness") or 3)
-            a = int(r.get("rating_accessibility") or 3)
-            all_feedbacks.append(
-                TestFeedbackResponse(
-                    id=str(r.get("id")),
-                    innovation_id=str(r.get("innovation_id")),
-                    application_id=r.get("application_id"),
-                    rating_usability=u,
-                    rating_effectiveness=e,
-                    rating_accessibility=a,
-                    average_score=round((u + e + a) / 3.0, 2),
-                    pros=r.get("pros"),
-                    cons_and_barriers=r.get("cons_and_barriers"),
-                    suggested_improvements=r.get("suggested_improvements"),
-                    would_recommend=bool(r.get("would_recommend", True)),
-                    author_name=str(r.get("author_name", "Anonim")),
-                    created_at=r.get("created_at"),
-                )
-            )
+
 
     total_feedbacks = len(all_feedbacks)
     overall_avg_rating = (

@@ -1,3 +1,4 @@
+import uuid
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -9,7 +10,11 @@ from app.models.schemas import (
     SubmissionStatusUpdate,
     SubmissionEventResponse,
     NotificationResult,
+    InnovationCreate,
+    InnovationUpdate,
+    MatchItem,
 )
+from app.services.ai import create_embedding
 from app.services.notifications import notify_status_change, get_recent_events
 
 router = APIRouter(prefix="/admin", tags=["Admin ROPS"])
@@ -287,3 +292,216 @@ async def test_webhook_dispatch(
         webhook_url=body.webhook_url,
     )
     return result
+
+
+# ==============================================================================
+# ZARZĄDZANIE BAZĄ WIEDZY (PUNKT VI: PANEL ADMINISTRATORA ROPS)
+# ==============================================================================
+
+@router.get("/innovations", response_model=List[MatchItem])
+async def list_admin_innovations(
+    category: Optional[str] = Query(None, description="Filtruj według kategorii"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filtruj według statusu (np. sprawdzone, nowa)"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    admin: UserSession = Depends(require_rops_admin),
+):
+    """
+    Pobiera listę innowacji dla panelu administratora ROPS.
+    Pozwala na przegląd bazy wiedzy, weryfikację i publikację.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Baza danych Supabase jest niedostępna.")
+
+    try:
+        query = supabase.table("innovations").select(
+            "id, title, description, target_group, category, why_relevant, source_url, status"
+        )
+        if category:
+            query = query.eq("category", category)
+        if status_filter:
+            query = query.eq("status", status_filter)
+
+        res = query.range(offset, offset + limit - 1).execute()
+        rows = _to_dict_list(res.data)
+
+        return [
+            MatchItem(
+                id=str(r.get("id", "")).strip(),
+                title=str(r.get("title", "")).strip(),
+                similarity_score=1.0,
+                why_relevant=r.get("why_relevant"),
+                source_url=r.get("source_url"),
+                target_group=r.get("target_group"),
+                category=r.get("category"),
+                description=r.get("description"),
+                status=str(r.get("status", "sprawdzone")).strip(),
+            )
+            for r in rows
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Błąd bazy danych: {str(e)}")
+
+
+@router.post("/innovations", response_model=MatchItem, status_code=status.HTTP_201_CREATED)
+async def create_admin_innovation(
+    payload: InnovationCreate,
+    admin: UserSession = Depends(require_rops_admin),
+):
+    """
+    Dodaje nową innowację do Bazy Wiedzy ROPS Kraków.
+    Automatycznie wylicza zbuforowany embedding 1536D, dzięki czemu
+    rozwiązanie natychmiast bierze udział w matchmakingu wektorowym.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Baza danych Supabase jest niedostępna.")
+
+    inv_id = payload.id.strip() if payload.id and payload.id.strip() else f"inv_{uuid.uuid4().hex[:8]}"
+
+    # Wyliczenie embeddingu semantycznego
+    semantic_text = (
+        f"{payload.title}. Kategoria: {payload.category}. "
+        f"Grupa docelowa: {payload.target_group}. "
+        f"Dlaczego warto: {payload.why_relevant or ''}. "
+        f"Opis: {payload.description}"
+    )
+    embedding = create_embedding(semantic_text)
+
+    row = {
+        "id": inv_id,
+        "title": payload.title.strip(),
+        "description": payload.description.strip(),
+        "target_group": payload.target_group.strip(),
+        "category": payload.category.strip(),
+        "why_relevant": payload.why_relevant.strip() if payload.why_relevant else None,
+        "source_url": payload.source_url.strip() if payload.source_url else None,
+        "status": payload.status.strip(),
+        "author_or_institution": payload.author_or_institution or "ROPS Kraków",
+        "embedding": embedding,
+    }
+
+    try:
+        res = supabase.table("innovations").insert(row).execute()
+        inserted_list = _to_dict_list(res.data)
+        if not inserted_list:
+            raise HTTPException(status_code=500, detail="Błąd podczas tworzenia rekordu innowacji.")
+        inserted = inserted_list[0]
+        return MatchItem(
+            id=str(inserted.get("id", inv_id)),
+            title=str(inserted.get("title", payload.title)),
+            similarity_score=1.0,
+            why_relevant=inserted.get("why_relevant"),
+            source_url=inserted.get("source_url"),
+            target_group=inserted.get("target_group"),
+            category=inserted.get("category"),
+            description=inserted.get("description"),
+            status=str(inserted.get("status", payload.status)),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd zapisu innowacji: {str(e)}")
+
+
+@router.put("/innovations/{innovation_id}", response_model=MatchItem)
+async def update_admin_innovation(
+    innovation_id: str,
+    payload: InnovationUpdate,
+    admin: UserSession = Depends(require_rops_admin),
+):
+    """
+    Edytuje istniejącą innowację w Bazie Wiedzy ROPS Kraków.
+    Jeśli tytuł lub opis uległy zmianie, automatycznie aktualizuje wektor embeddingu 1536D.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Baza danych Supabase jest niedostępna.")
+
+    # Pobranie aktualnego rekordu
+    curr_res = supabase.table("innovations").select("*").eq("id", innovation_id).execute()
+    curr_list = _to_dict_list(curr_res.data)
+    if not curr_list:
+        raise HTTPException(status_code=404, detail="Innowacja nie została odnaleziona.")
+    curr = curr_list[0]
+
+    update_data: Dict[str, Any] = {}
+    if payload.title is not None:
+        update_data["title"] = payload.title.strip()
+    if payload.description is not None:
+        update_data["description"] = payload.description.strip()
+    if payload.target_group is not None:
+        update_data["target_group"] = payload.target_group.strip()
+    if payload.category is not None:
+        update_data["category"] = payload.category.strip()
+    if payload.why_relevant is not None:
+        update_data["why_relevant"] = payload.why_relevant.strip()
+    if payload.source_url is not None:
+        update_data["source_url"] = payload.source_url.strip()
+    if payload.status is not None:
+        update_data["status"] = payload.status.strip()
+    if payload.author_or_institution is not None:
+        update_data["author_or_institution"] = payload.author_or_institution.strip()
+
+    # Jeśli zmieniły się kluczowe pola semantyczne, przelicz embedding
+    if any(k in update_data for k in ("title", "description", "target_group", "category", "why_relevant")):
+        new_title = update_data.get("title", curr.get("title", ""))
+        new_cat = update_data.get("category", curr.get("category", ""))
+        new_tg = update_data.get("target_group", curr.get("target_group", ""))
+        new_why = update_data.get("why_relevant", curr.get("why_relevant", ""))
+        new_desc = update_data.get("description", curr.get("description", ""))
+        semantic_text = f"{new_title}. Kategoria: {new_cat}. Grupa docelowa: {new_tg}. Dlaczego warto: {new_why}. Opis: {new_desc}"
+        update_data["embedding"] = create_embedding(semantic_text)
+
+    try:
+        res = supabase.table("innovations").update(update_data).eq("id", innovation_id).execute()
+        updated_list = _to_dict_list(res.data)
+        if not updated_list:
+            raise HTTPException(status_code=500, detail="Błąd aktualizacji rekordu innowacji.")
+        updated = updated_list[0]
+        return MatchItem(
+            id=str(updated.get("id", innovation_id)),
+            title=str(updated.get("title", "")),
+            similarity_score=1.0,
+            why_relevant=updated.get("why_relevant"),
+            source_url=updated.get("source_url"),
+            target_group=updated.get("target_group"),
+            category=updated.get("category"),
+            description=updated.get("description"),
+            status=str(updated.get("status", "sprawdzone")),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd aktualizacji innowacji: {str(e)}")
+
+
+@router.post("/innovations/{innovation_id}/publish", response_model=MatchItem)
+async def publish_admin_innovation(
+    innovation_id: str,
+    admin: UserSession = Depends(require_rops_admin),
+):
+    """
+    Weryfikuje i publikuje innowację w Bazie Wiedzy ROPS (status: 'sprawdzone').
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Baza danych Supabase jest niedostępna.")
+
+    try:
+        res = supabase.table("innovations").update({"status": "sprawdzone"}).eq("id", innovation_id).execute()
+        updated_list = _to_dict_list(res.data)
+        if not updated_list:
+            raise HTTPException(status_code=404, detail="Innowacja nie została odnaleziona.")
+        updated = updated_list[0]
+        return MatchItem(
+            id=str(updated.get("id", innovation_id)),
+            title=str(updated.get("title", "")),
+            similarity_score=1.0,
+            why_relevant=updated.get("why_relevant"),
+            source_url=updated.get("source_url"),
+            target_group=updated.get("target_group"),
+            category=updated.get("category"),
+            description=updated.get("description"),
+            status="sprawdzone",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd publikacji innowacji: {str(e)}")
+

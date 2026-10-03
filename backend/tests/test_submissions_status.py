@@ -50,6 +50,6 @@ class TestSubmissionsStatus:
         assert sub.title == "Senior Taxi w Małopolsce"
 
     def test_messages_requires_permission(self):
-        """Próba pobrania wiadomości bez autoryzacji dla nieistniejącego/cudzego ID jest odrzucana."""
+        """Próba pobrania wiadomości bez autoryzacji dla nieistniejącego/cudzego ID jest odrzucana (401/403/404/503)."""
         res = client.get("/api/submissions/00000000-0000-0000-0000-000000000000/messages")
-        assert res.status_code in (403, 404, 503)
+        assert res.status_code in (401, 403, 404, 503)
