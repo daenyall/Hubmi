@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import math
 import re
 from functools import lru_cache
@@ -7,6 +8,7 @@ import requests
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
 # Inicjalizacja klienta OpenAI tylko jeśli klucz jest ustawiony
 _openai_client = None
 
@@ -21,7 +23,7 @@ def get_openai_client():
             _openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
             return _openai_client
         except Exception as e:
-            print(f"Warning: Failed to initialize OpenAI client: {e}")
+            logger.warning("Failed to initialize OpenAI client: %s", e)
             return None
     return None
 
@@ -61,9 +63,9 @@ def _get_gemini_embedding(text: str) -> Optional[List[float]]:
                     values = [round(x / norm, 6) for x in values]
                 return values[:1536]
         else:
-            print(f"Gemini API returned status {res.status_code}: {res.text}")
+            logger.warning("Gemini API returned status %s: %s", res.status_code, res.text)
     except Exception as e:
-        print(f"Gemini embedding error: {e}")
+        logger.warning("Gemini embedding error: %s", e)
     return None
 
 
@@ -114,7 +116,7 @@ def _get_embedding_tuple(clean_text: str) -> tuple:
             )
             return tuple(response.data[0].embedding)
         except Exception as e:
-            print(f"OpenAI embedding error: {e}. Falling back to deterministic embedding.")
+            logger.warning("OpenAI embedding error: %s. Falling back to deterministic embedding.", e)
 
     # 3. Zapasowy silnik deterministyczny
     return tuple(_fallback_deterministic_embedding(clean_text))
@@ -280,7 +282,7 @@ def _generate_gemini_plan(
                     if full_text.strip():
                         return full_text.strip()
     except Exception as e:
-        print(f"Gemini completion error: {e}")
+        logger.warning("Gemini completion error: %s", e)
     return None
 
 
@@ -360,7 +362,7 @@ def generate_adaptation_plan(
                     "key_kpis": default_kpis,
                 }
         except Exception as e:
-            print(f"OpenAI completion error: {e}")
+            logger.warning("OpenAI completion error: %s", e)
 
     # 3. Fallbackowy szkielet planu z tabelą i partnerami lokalnymi
     fallback_text = _build_fallback_adaptation_plan(
