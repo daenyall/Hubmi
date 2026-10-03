@@ -33,7 +33,7 @@ def validate_innovation_item(item: Dict[str, Any], index: int) -> Tuple[bool, Li
     return len(errors) == 0, errors
 
 
-def seed_innovations(json_path: str = None, dry_run: bool = False, verbose: bool = False) -> int:
+def seed_innovations(json_path: Optional[str] = None, dry_run: bool = False, verbose: bool = False) -> int:
     """Główna funkcja importu innowacji z pliku JSON i generowania wektorów."""
     print("=" * 65)
     print("  Małopolski Hub Innowacji Społecznych (ROPS Kraków)")

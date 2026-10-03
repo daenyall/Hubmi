@@ -1,9 +1,13 @@
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, HTTPException, Query
 from app.db.supabase import get_supabase_client
 from app.models.schemas import MatchItem
 
 router = APIRouter()
+
+
+def _to_str(val: Any) -> Optional[str]:
+    return str(val).strip() if val is not None and str(val).strip() else None
 
 
 @router.get("/innovations", response_model=List[MatchItem])
@@ -28,21 +32,25 @@ async def list_innovations(
             query = query.eq("category", category)
 
         res = query.range(offset, offset + limit - 1).execute()
-        data = res.data or []
+        data: Any = res.data or []
 
         items: List[MatchItem] = []
-        for row in data:
-            items.append(MatchItem(
-                id=str(row.get("id", "")),
-                title=str(row.get("title", "")),
-                similarity_score=1.0,
-                why_relevant=row.get("why_relevant"),
-                source_url=row.get("source_url"),
-                target_group=row.get("target_group"),
-                category=row.get("category"),
-                description=row.get("description"),
-                status=str(row.get("status", "sprawdzone")),
-            ))
+        if isinstance(data, list):
+            for row in data:
+                if isinstance(row, dict):
+                    items.append(
+                        MatchItem(
+                            id=str(row.get("id", "")).strip(),
+                            title=str(row.get("title", "")).strip(),
+                            similarity_score=1.0,
+                            why_relevant=_to_str(row.get("why_relevant")),
+                            source_url=_to_str(row.get("source_url")),
+                            target_group=_to_str(row.get("target_group")),
+                            category=_to_str(row.get("category")),
+                            description=_to_str(row.get("description")),
+                            status=str(row.get("status", "sprawdzone")).strip(),
+                        )
+                    )
         return items
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Błąd bazy danych: {str(e)}")
