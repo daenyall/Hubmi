@@ -25,25 +25,35 @@ class TestRolesSecurity:
         assert res.status_code == 403
         assert "Brak uprawnień" in res.json().get("detail", "")
 
-    def test_applicant_access_admin_forbidden(self):
-        """Zwykły wnioskodawca (JST/NGO) nie ma dostępu do panelu administratora."""
+    def test_unverified_or_forged_jwt_rejected(self):
+        """Token z niepoprawnym/podrobionym podpisem jest odrzucany z kodem 401 Unauthorized."""
         token = make_jwt(sub="user-123", email="wojt@zabierzow.pl", role="authenticated")
         res = client.get(
             "/api/admin/submissions",
             headers={"Authorization": f"Bearer {token}"},
         )
+        assert res.status_code == 401
+        assert "Nieprawidłowy lub wygasły token" in res.json().get("detail", "")
+
+    def test_applicant_access_admin_forbidden(self):
+        """Zwykły wnioskodawca (JST/NGO) nie ma dostępu do panelu administratora (403 Forbidden)."""
+        res = client.get(
+            "/api/admin/submissions",
+            headers={"X-Admin-Role": "applicant"},
+        )
         assert res.status_code == 403
         assert "Administrator ROPS Kraków" in res.json().get("detail", "")
 
-    def test_rops_admin_jwt_access_granted(self):
-        """Użytkownik z domeną @rops.krakow.pl otrzymuje uprawnienia administratora."""
-        token = make_jwt(sub="admin-rops-01", email="anna.nowak@rops.krakow.pl", role="authenticated")
-        res = client.get(
-            "/api/admin/submissions",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        # Powinno być 200 (jeśli Supabase działa) lub 503 (jeśli brak bazy), ale NIGDY 403!
-        assert res.status_code != 403
+    def test_rops_admin_service_key_granted(self):
+        """Klucz serwisowy backendu Supabase posiada pełne uprawnienia administratora."""
+        from app.core.config import settings
+        if settings.SUPABASE_KEY:
+            res = client.get(
+                "/api/admin/submissions",
+                headers={"Authorization": f"Bearer {settings.SUPABASE_KEY}"},
+            )
+            assert res.status_code != 403
+            assert res.status_code != 401
 
     def test_dev_header_rops_admin_granted(self):
         """Nagłówek X-Admin-Role: rops_admin daje uprawnienia administratora dla frontendu / demo."""

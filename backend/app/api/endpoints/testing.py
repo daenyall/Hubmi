@@ -54,21 +54,27 @@ async def list_test_applications(
     innovation_id: Optional[str] = Query(None, description="Filtruj po ID innowacji"),
     status_filter: Optional[str] = Query(None, alias="status", description="Filtruj po statusie ('nowe', 'zaakceptowane', 'w_trakcie', 'zakonczone')"),
     limit: int = Query(50, ge=1, le=100),
+    admin: UserSession = Depends(require_rops_admin),
 ):
     """
     Pobiera listę zgłoszeń testowych z możliwością filtrowania po innowacji lub statusie.
+    Wymaga uprawnień Administratora ROPS Kraków ze względu na ochronę danych kontaktowych koordynatorów.
     """
     return service_list_apps(
         innovation_id=innovation_id,
-        status=status_filter,
+        status_filter=status_filter,
         limit=limit,
     )
 
 
 @router.get("/applications/{application_id}", response_model=TestApplicationResponse)
-async def get_test_application(application_id: str):
+async def get_test_application(
+    application_id: str,
+    admin: UserSession = Depends(require_rops_admin),
+):
     """
     Pobiera szczegóły konkretnego zgłoszenia testowego.
+    Wymaga uprawnień Administratora ROPS Kraków ze względu na ochronę danych kontaktowych koordynatorów.
     """
     app = service_get_app(application_id)
     if not app:

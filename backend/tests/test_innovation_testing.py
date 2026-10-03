@@ -78,20 +78,28 @@ class TestInnovationTesting:
         )
         assert res1.status_code == 201
 
-        # Pobranie listy bez filtrów
-        res_all = client.get("/api/testing/applications")
+        # 1. Próba pobrania bez uprawnień administratora ROPS (powinna być zablokowana - ochrona danych osobowych RODO)
+        res_unauthorized = client.get("/api/testing/applications")
+        assert res_unauthorized.status_code == 403
+
+        # 2. Pobranie listy jako Administrator ROPS
+        admin_headers = {"X-Admin-Role": "rops_admin"}
+        res_all = client.get("/api/testing/applications", headers=admin_headers)
         assert res_all.status_code == 200
         assert len(res_all.json()) >= 1
 
-        # Filtrowanie po innovation_id
-        res_filtered = client.get(f"/api/testing/applications?innovation_id={target_inv}")
+        # 3. Filtrowanie po innovation_id jako Administrator ROPS
+        res_filtered = client.get(
+            f"/api/testing/applications?innovation_id={target_inv}",
+            headers=admin_headers,
+        )
         assert res_filtered.status_code == 200
         matched = res_filtered.json()
         assert len(matched) >= 1
         assert all(item["innovation_id"] == target_inv for item in matched)
 
     def test_get_application_by_id(self):
-        """Pobieranie pojedynczej aplikacji po ID zwraca szczegóły lub 404 dla nieistniejącej."""
+        """Pobieranie pojedynczej aplikacji po ID wymaga uprawnień ROPS (ochrona danych) i zwraca 404 dla nieistniejącej."""
         inv_id = f"inv-{uuid.uuid4().hex[:6]}"
         create_res = client.post(
             "/api/testing/apply",
@@ -105,13 +113,19 @@ class TestInnovationTesting:
         )
         app_id = create_res.json()["id"]
 
-        get_res = client.get(f"/api/testing/applications/{app_id}")
+        # Próba anonimowa (403 Forbidden)
+        anon_res = client.get(f"/api/testing/applications/{app_id}")
+        assert anon_res.status_code == 403
+
+        # Odczyt jako Administrator ROPS
+        admin_headers = {"X-Admin-Role": "rops_admin"}
+        get_res = client.get(f"/api/testing/applications/{app_id}", headers=admin_headers)
         assert get_res.status_code == 200
         assert get_res.json()["id"] == app_id
         assert get_res.json()["institution_name"] == "Fundacja Aktywna Wieś"
 
         # Błędne ID
-        bad_res = client.get(f"/api/testing/applications/{uuid.uuid4()}")
+        bad_res = client.get(f"/api/testing/applications/{uuid.uuid4()}", headers=admin_headers)
         assert bad_res.status_code == 404
 
     def test_patch_status_authorization(self):

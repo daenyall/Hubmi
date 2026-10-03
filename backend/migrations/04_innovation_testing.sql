@@ -1,12 +1,14 @@
 -- ==============================================================================
 -- MIGRACJA 04: MODUŁ TESTERA INNOWACJI SPOŁECZNYCH (ROPS KRAKÓW / MOSTMI)
 -- Punkt IV Wyzwania ROPS: pilotaże w gminach, feedback, oceny i rekomendacje
+-- Zabezpieczenie danych kontaktowych (RODO) i ścisła ochrona RLS
 -- ==============================================================================
 
 -- 1. TABELA ZGŁOSZEŃ CHĘCI TESTOWANIA W GMINIE / INSTYTUCJI
 CREATE TABLE IF NOT EXISTS public.innovation_test_applications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     innovation_id TEXT NOT NULL REFERENCES public.innovations(id) ON DELETE CASCADE,
+    applicant_id UUID DEFAULT auth.uid(),             -- ID zalogowanego wnioskodawcy (jeśli dotyczy)
     tester_type TEXT NOT NULL DEFAULT 'JST',          -- 'JST', 'CUS', 'NGO', 'Mieszkaniec', 'Inna'
     institution_name TEXT NOT NULL,                   -- np. 'Gmina Wieliczka', 'CUS Tarnów'
     contact_person TEXT NOT NULL,                     -- Imię i nazwisko koordynatora
@@ -23,6 +25,9 @@ CREATE TABLE IF NOT EXISTS public.innovation_test_applications (
 -- Indeks pod szybkie zapytania po statusie i innowacji
 CREATE INDEX IF NOT EXISTS test_applications_inv_idx 
 ON public.innovation_test_applications (innovation_id, status);
+
+CREATE INDEX IF NOT EXISTS test_applications_applicant_idx 
+ON public.innovation_test_applications (applicant_id);
 
 
 -- 2. TABELA FORMULARZY OCEN I FEEDBACKU Z TESTÓW
@@ -46,7 +51,7 @@ CREATE INDEX IF NOT EXISTS feedback_inv_idx
 ON public.innovation_feedback (innovation_id, created_at DESC);
 
 
--- 3. POLITYKI BEZPIECZEŃSTWA (RLS)
+-- 3. POLITYKI BEZPIECZEŃSTWA (RLS) - ŚCIŚLE CHRONIONE DANE KONTAKTOWE
 ALTER TABLE public.innovation_test_applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.innovation_feedback ENABLE ROW LEVEL SECURITY;
 
@@ -56,11 +61,21 @@ ON public.innovation_test_applications FOR INSERT
 TO public 
 WITH CHECK (true);
 
--- Odczyt aplikacji testowych: publiczny odczyt lub admin ROPS
-CREATE POLICY "Public read test applications" 
+-- OCHRONA DANYCH KONTAKTOWYCH (RODO):
+-- Odczyt aplikacji testowych wyłącznie przez administratora ROPS lub właściciela zgłoszenia.
+-- Nigdy publicznie!
+DROP POLICY IF EXISTS "Public read test applications" ON public.innovation_test_applications;
+
+CREATE POLICY "ROPS and owners read test applications" 
 ON public.innovation_test_applications FOR SELECT 
 TO public 
-USING (true);
+USING (
+    (auth.uid() IS NOT NULL AND auth.uid() = applicant_id)
+    OR auth.jwt()->>'email' LIKE '%@rops.krakow.pl' 
+    OR auth.jwt()->>'role' = 'rops_admin' 
+    OR (auth.jwt()->'app_metadata'->>'hubmi_role' = 'rops_admin')
+    OR auth.role() = 'service_role'
+);
 
 -- Zarządzanie statusem aplikacji testowej: wyłącznie Admin ROPS / service_role
 CREATE POLICY "Admins manage test applications" 
@@ -69,10 +84,11 @@ TO public
 USING (
     auth.jwt()->>'email' LIKE '%@rops.krakow.pl' 
     OR auth.jwt()->>'role' = 'rops_admin' 
+    OR (auth.jwt()->'app_metadata'->>'hubmi_role' = 'rops_admin')
     OR auth.role() = 'service_role'
 );
 
--- Oceny i feedback: publiczny odczyt (transparentność bazy wiedzy ROPS)
+-- Oceny i feedback: publiczny odczyt (baza wiedzy i transparentność dla gmin)
 CREATE POLICY "Public read feedback" 
 ON public.innovation_feedback FOR SELECT 
 TO public 
