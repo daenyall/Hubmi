@@ -1,5 +1,4 @@
-import { ArrowRight, Leaf, MessageSquareText, Search, BookOpen } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowRight, MessageSquareText, Search, BookOpen } from "lucide-react";
 import { MatchingForm } from "@/components/matching-form";
 import { USE_MOCK_MATCHING } from "@/lib/api";
 
@@ -11,28 +10,6 @@ const steps = [
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <a href="#main-content" className="sr-only z-50 rounded-lg bg-primary p-4 text-primary-foreground focus:not-sr-only focus:absolute focus:left-4 focus:top-4">
-        Przejdź do treści
-      </a>
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-[20px] py-5 sm:px-[32px]">
-          <a href="#main-content" aria-label="HubMI — strona główna" className="flex min-h-11 items-center gap-3 rounded-sm">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Leaf className="size-5" aria-hidden="true" />
-            </span>
-            <span className="text-2xl font-bold tracking-tight">Hub<span className="text-primary">MI</span></span>
-          </a>
-          <nav aria-label="Nawigacja główna" className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium">
-            <a href="#wyszukaj" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Znajdź rozwiązania</a>
-            <a href="#jak-to-dziala" className="inline-flex min-h-11 items-center rounded-sm text-muted-foreground underline-offset-4 hover:underline">Jak to działa</a>
-            {USE_MOCK_MATCHING && (
-              <Badge variant="outline" className="h-auto min-h-7 whitespace-normal border-amber-300 bg-amber-50 text-amber-950">Dane demonstracyjne</Badge>
-            )}
-          </nav>
-        </div>
-      </header>
-
       <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 space-y-12 px-[20px] pb-16 pt-12 sm:px-[32px] sm:pt-16">
         <section aria-labelledby="intro-heading" className="max-w-3xl space-y-5">
           <p className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -73,12 +50,5 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-border px-5 py-6 text-sm text-muted-foreground">
-        <div className="mx-auto flex max-w-5xl flex-wrap justify-between gap-2 sm:px-3">
-          <p>HubMI · Innowacje społeczne</p>
-          <p>HackYeah 2026</p>
-        </div>
-      </footer>
-    </div>
   );
 }

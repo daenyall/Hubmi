@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MatchItem } from "@/lib/matching";
 import { AdaptationForm } from "@/components/adaptation-form";
+import Link from "next/link";
+import { isInnovationId } from "@/features/submissions/model";
 
 export function MatchCard({
   item,
@@ -57,7 +59,8 @@ export function MatchCard({
           )}
           {!resource && !demo && <AdaptationForm item={item} />}
         </CardContent>
-        <CardFooter className="min-h-16 bg-transparent">
+        <CardFooter className="min-h-16 flex-wrap gap-4 bg-transparent">
+          {!demo && !resource && isInnovationId(item.id) && <Link href={`/kreator?innowacja=${encodeURIComponent(item.id)}`} aria-label={`Zgłoś pomysł powiązany z: ${item.title}`} className="inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4">Zgłoś pomysł</Link>}
           {item.source_url ? (
             <a
               href={item.source_url}

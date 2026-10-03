@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/features/auth/auth-provider";
+import { SiteHeader, SiteFooter } from "@/components/site-header";
 
 export const metadata: Metadata = {
   title: "HubMI — innowacje dla potrzeb społecznych",
@@ -14,7 +16,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pl"
       className="h-full antialiased"
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><AuthProvider><SiteHeader />{children}<SiteFooter /></AuthProvider></body>
     </html>
   );
 }
