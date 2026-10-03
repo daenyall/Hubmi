@@ -1,0 +1,102 @@
+[
+  {
+    "id": "inv_01",
+    "title": "Mobilny Asystent Seniora",
+    "category": "Seniorzy",
+    "target_group": "Seniorzy 65+, osoby z niepełnosprawnością ruchową na terenach wiejskich",
+    "why_relevant": "Rozwiązanie testowane w gminach wiejskich Małopolski; łączy transport do lekarza z asystą w załatwianiu spraw urzędowych.",
+    "description": "System mobilnego wsparcia dla osób starszych mieszkających w rozproszonych sołectwach. Asystent dysponuje przystosowanym pojazdem, pomaga w dotarciu na rehabilitację, wizyty lekarskie oraz wspiera w codziennych zakupach i sprawach urzędowych.",
+    "source_url": "https://rops.krakow.pl/innowacje/asystent-seniora",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_02",
+    "title": "Sąsiedzka Sieć Wsparcia Psychicznego",
+    "category": "Zdrowie psychiczne",
+    "target_group": "Młodzież i dorośli w kryzysie emocjonalnym, osoby samotne",
+    "why_relevant": "Odpowiedź na kryzys zdrowia psychicznego w mniejszych miejscowościach pozbawionych stałego dostępu do psychoterapeutów.",
+    "description": "Lokalna sieć przeszkolonych liderów społecznych (tzw. pierwszego kontaktu kryzysowego), którzy potrafią zidentyfikować pierwsze symptomy depresji i kryzysu psychicznego, oferując wsparcie i bezpieczne pokierowanie do specjalistów.",
+    "source_url": "https://rops.krakow.pl/innowacje/wsparcie-psychiczne",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_03",
+    "title": "Terenowy Wózek Asystujący 'Włóczykij'",
+    "category": "Dostępność",
+    "target_group": "Osoby z niepełnosprawnościami sprzężonymi, dzieci i młodzież poruszająca się na wózkach",
+    "why_relevant": "Umożliwia pełny udział w wycieczkach i spacerach w trudnym górzystym terenie Małopolski.",
+    "description": "Specjalistyczny, jednoszpilkowy wózek terenowy prowadzony przez dwóch asystentów, umożliwiający osobom z porażeniem mózgowym lub ciężkimi niepełnosprawnościami ruchowymi bezpieczne przemieszczanie się po szlakach leśnych i parkach krajobrazowych.",
+    "source_url": "https://rops.krakow.pl/innowacje/wloczykij",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_04",
+    "title": "Cyfrowy Latarnik Pokoleń",
+    "category": "Włączenie cyfrowe",
+    "target_group": "Seniorzy zagrożeni wykluczeniem technologicznym, młodzież szkolna",
+    "why_relevant": "Eliminuje bariery w e-usługach i IKP (Internetowe Konto Pacjenta) poprzez wolontariat międzypokoleniowy.",
+    "description": "Model warsztatów 1-na-1 prowadzonych przez młodzież dla seniorów. Uczy obsługi smartfona, zamawiania e-recept, korzystania z mObywatela i bankowości internetowej z naciskiem na cyberbezpieczeństwo i przeciwdziałanie oszustwom 'na wnuczka'.",
+    "source_url": "https://rops.krakow.pl/innowacje/latarnik-cyfrowy",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_05",
+    "title": "Sensoryczna Przystań (Pokój Wyciszeń)",
+    "category": "Dostępność",
+    "target_group": "Dzieci w spektrum autyzmu, z zaburzeniami sensorycznymi, uczniowie szkół powszechnych",
+    "why_relevant": "Gotowy, tani w adaptacji projekt modułowej sali wyciszeń dla wiejskich szkół i przedszkoli.",
+    "description": "Niskokosztowy zestaw aranżacyjny dla sal szkolnych – specjalne oświetlenie tłumiące bodźce, fotele kokonowe, panele akustyczne i sprzęt do integracji sensorycznej. Pozwala dzieciom przebodźcowanym zredukować stres i zapobiegać kryzysom bez konieczności opuszczania szkoły.",
+    "source_url": "https://rops.krakow.pl/innowacje/pokoj-wyciszen",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_06",
+    "title": "Mobilny Punkt Usług Społecznych (Bus CUS)",
+    "category": "Usługi publiczne",
+    "target_group": "Mieszkańcy małych sołectw, osoby zależne, rodziny wielodzietne",
+    "why_relevant": "Przełamuje barierę depopulacji i odległości od ośrodków miejskich w Małopolsce.",
+    "description": "Specjalistyczny mikrobus kursujący według stałego harmonogramu po sołectwach. Na pokładzie dyżurują: pracownik socjalny, doradca ds. ulg i świadczeń, prawnik oraz pielęgniarka wykonująca podstawowe badania profilaktyczne.",
+    "source_url": "https://rops.krakow.pl/innowacje/mobilny-cus",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_07",
+    "title": "Kawiarenka Pamięci (Dementia Cafe)",
+    "category": "Seniorzy",
+    "target_group": "Osoby z chorobą Alzheimera i zespołami otępiennymi oraz ich nieformalni opiekunowie",
+    "why_relevant": "Zapewnia opiekę wytchnieniową i zapobiega wypaleniu opiekunów rodzinnych.",
+    "description": "Cykliczne, nieformalne spotkania w kawiarniach lub domach kultury. Podczas gdy chorzy uczestniczą w zajęciach aktywizujących pamięć prowadzonych przez terapeutów, ich bliscy otrzymują wsparcie psychologiczne, wymieniają się doświadczeniami i regenerują siły.",
+    "source_url": "https://rops.krakow.pl/innowacje/kawiarenka-pamieci",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_08",
+    "title": "Spółdzielnia Usług Sąsiedzkich (CzasoBank)",
+    "category": "Integracja społeczna",
+    "target_group": "Samotne matki, seniorzy, osoby bezrobotne, migranci",
+    "why_relevant": "Buduje kapitał społeczny i samopomoc bez konieczności dysponowania dużym budżetem gminnym.",
+    "description": "Lokalny system bezgotówkowej wymiany usług oparty na banku czasu. Przykładowo: senior pomaga w lekcjach matematyki, a w zamian rodzic młodego dziecka pomaga mu zrobić większe zakupy lub skosić trawnik.",
+    "source_url": "https://rops.krakow.pl/innowacje/bank-czasu",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_09",
+    "title": "Trener Usamodzielnienia Młodzieży Pieczy Zastępczej",
+    "category": "Młodzież",
+    "target_group": "Wychowankowie pieczy zastępczej i domów dziecka wchodzący w dorosłość (18-24 lata)",
+    "why_relevant": "Skutecznie zmniejsza ryzyko bezdomności i wykluczenia społecznego młodzieży opuszczającej placówki.",
+    "description": "Indywidualny program mentoringowy prowadzony przez dedykowanego trenera życiowego. Pomaga w znalezieniu pierwszego mieszkania, nauce zarządzania budżetem domowym, wejściu na rynek pracy i radzeniu sobie z biurokracją.",
+    "source_url": "https://rops.krakow.pl/innowacje/trener-usamodzielnienia",
+    "status": "sprawdzone"
+  },
+  {
+    "id": "inv_10",
+    "title": "Sensoryczny Ogród Społeczny przy DPS",
+    "category": "Dostępność",
+    "target_group": "Mieszkańcy Domów Pomocy Społecznej oraz lokalna społeczność (dzieci, sąsiedzi)",
+    "why_relevant": "Otwiera zamknięte instytucje opiekuńcze na integrację ze społecznością lokalną.",
+    "description": "Podwyższone grządki dostępne dla osób na wózkach, ścieżki sensoryczne (kora, kamienie, szyszki), rośliny miododajne i zioła zapachowe. Miejsce wspólnych warsztatów ogrodniczych łączących pensjonariuszy z dziećmi z pobliskiej szkoły.",
+    "source_url": "https://rops.krakow.pl/innowacje/ogrod-sensoryczny",
+    "status": "sprawdzone"
+  }
+]
