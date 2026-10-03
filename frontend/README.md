@@ -143,3 +143,11 @@ NEXT_PUBLIC_ROPS_COMMUNICATION_ENABLED=true
 Zrestartuj dev albo wykonaj build. Konta: testowy autor A, drugi autor B i pracownik z rolą ROPS nadaną przez serwer. Flagi są kontrolą gotowości integracji, nie zabezpieczeniem bazy. Dla panelu obowiązują te same `npm run lint`, `npm test`, `npm run build`. Nie ma nowych bibliotek ani drugiego systemu logowania.
 
 Scenariusz demonstracji na prawdziwej bazie testowej po wdrożeniu A: autor `/kreator` → zapis → `/moje-zgloszenia/[id]` i wiadomość → pracownik `/rops` → filtr i szczegóły → zmiana statusu, odpowiedź w rozmowie oraz osobna oficjalna odpowiedź → autor odświeża i odczytuje obie odpowiedzi → autor B próbuje bezpośredniego URL i otrzymuje odmowę. Nie używać prawdziwych zgłoszeń do testu.
+
+## Zasobnik Wiedzy
+
+`/baza-wiedzy` pobiera rzeczywiste rekordy z `GET /api/innovations` przez istniejący `NEXT_PUBLIC_BACKEND_URL`. Uruchom frontend jak wyżej (`npm run dev`); backend musi działać i dopuszczać origin frontendu przez CORS. Katalog nie korzysta z mocka matchmakingu ani z prywatnych serwisów zgłoszeń.
+
+Wyszukiwanie obejmuje nazwę, opis i odbiorców **tylko pobranych rekordów**. „Wczytaj więcej” rozszerza zakres stronami po 50; nie zakładamy, że pierwsza strona zawiera całą bazę. Kategorie pochodzą z pobranych pozycji i mogą być niepełne, ale wybrany filtr jest przekazywany do serwera. Karty mają bezpieczne źródła HTTP/HTTPS i odnośnik do istniejącego kreatora z ID rzeczywistej innowacji. Brakujące pola są oznaczone; score i status nie są przedstawiane jako skuteczność ani certyfikacja.
+
+Kod: `src/features/knowledge/`. Kontrola klienta i regresji API: `node --test tests/knowledge.test.mjs tests/matching.test.mjs`. Dokładny kontrakt, zakończone kontrole, zakres testów na atrapach i blokada rzeczywistej integracji: [docs/knowledge-verification.md](docs/knowledge-verification.md).

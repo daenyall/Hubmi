@@ -15,6 +15,7 @@ export function SiteHeader() {
         </Link>
         <nav aria-label="Nawigacja główna" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium">
           <Link href="/#wyszukaj" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Znajdź rozwiązania</Link>
+          <Link href="/baza-wiedzy" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Zasobnik Wiedzy</Link>
           <Link href="/kreator" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Zgłoś pomysł</Link>
           <Link href="/moje-zgloszenia" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Moje zgłoszenia</Link>
           <Link href="/rops" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Panel ROPS</Link>
