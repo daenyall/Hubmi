@@ -29,16 +29,23 @@ function useAdminList(statusFilter: string) {
   const [attempt, setAttempt] = useState(0);
   const key = `${statusFilter}:${attempt}`;
   const [state, setState] = useState<ListState>({ key, phase: "loading" });
+  // Ostatni potwierdzony odczyt tego filtra zostaje na ekranie, gdy odświeżamy listę po zapisie.
+  const [cached, setCached] = useState<{ filter: string; items: AdminInnovation[] } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     Promise.resolve()
       .then(() => createKnowledgeAdminService().list({ status: statusFilter || undefined }, controller.signal))
-      .then((rows) => { if (!controller.signal.aborted) setState({ key, phase: "ready", items: rows }); })
+      .then((rows) => {
+        if (controller.signal.aborted) return;
+        setState({ key, phase: "ready", items: rows });
+        setCached({ filter: statusFilter, items: rows });
+      })
       .catch((error) => { if (!controller.signal.aborted) setState({ key, phase: "error", message: knowledgeAdminMessage(error) }); });
     return () => controller.abort();
   }, [key, statusFilter]);
   const current: ListState = state.key === key ? state : { key, phase: "loading" };
-  return { state: current, refresh: useCallback(() => setAttempt((n) => n + 1), []) };
+  const previous = current.phase === "ready" || cached?.filter !== statusFilter ? null : cached.items;
+  return { state: current, previous, refresh: useCallback(() => setAttempt((n) => n + 1), []) };
 }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -57,9 +64,10 @@ function InnovationForm({ heading, initial, submitLabel, onSave, onCancel }: {
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [pending, setPending] = useState(false);
   const request = useRef<AbortController | null>(null);
-  const mounted = useRef(true);
+  const mounted = useRef(false);
   const fields = useRef(new Map<keyof InnovationDraft, HTMLElement | null>());
-  useEffect(() => () => { mounted.current = false; request.current?.abort(); }, []);
+  // Ponowne wywołanie efektu (StrictMode) musi przywrócić flagę, inaczej zapis nie zaktualizuje widoku.
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.abort(); }; }, []);
 
   function change<K extends keyof InnovationDraft>(field: K, value: string) {
     setDraft((previous) => ({ ...previous, [field]: value }));
@@ -178,8 +186,9 @@ function PublishAction({ item, onPublished }: { item: AdminInnovation; onPublish
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const request = useRef<AbortController | null>(null);
-  const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; request.current?.abort(); }, []);
+  const mounted = useRef(false);
+  // Ponowne wywołanie efektu (StrictMode) musi przywrócić flagę, inaczej zapis nie zaktualizuje widoku.
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.abort(); }; }, []);
 
   async function publish() {
     if (request.current) return;
@@ -221,7 +230,8 @@ function PublishAction({ item, onPublished }: { item: AdminInnovation; onPublish
 
 function AdminPanelBody() {
   const [statusFilter, setStatusFilter] = useState("");
-  const { state, refresh } = useAdminList(statusFilter);
+  const { state, previous, refresh } = useAdminList(statusFilter);
+  const rows = state.phase === "ready" ? state.items : previous;
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -263,14 +273,16 @@ function AdminPanelBody() {
         <Button variant="outline" onClick={refresh} disabled={state.phase === "loading"} className="h-auto min-h-11 whitespace-normal px-[16px] py-2">{state.phase === "loading" ? "Odczytujemy…" : "Odśwież listę"}</Button>
       </div>
       <p role="status" aria-atomic="true" className="text-sm text-muted-foreground">
-        {state.phase === "loading" ? "Odczytujemy listę innowacji…" : state.phase === "ready" ? `Pozycje w tym widoku: ${state.items.length}.` : ""}
+        {state.phase === "loading"
+          ? previous ? "Odczytujemy listę ponownie. Do czasu potwierdzenia pokazujemy poprzedni odczyt." : "Odczytujemy listę innowacji…"
+          : state.phase === "ready" ? `Pozycje w tym widoku: ${state.items.length}.` : ""}
       </p>
       {state.phase === "error" && <div className="space-y-3"><StatusMessage error>{state.message}</StatusMessage>
         <Button variant="outline" onClick={refresh} className="h-auto min-h-11 whitespace-normal px-[16px] py-2">Ponów odczyt listy</Button></div>}
-      {state.phase === "loading" && <LoadingMessage>Wczytujemy innowacje…</LoadingMessage>}
-      {state.phase === "ready" && (!state.items.length
+      {state.phase === "loading" && !previous && <LoadingMessage>Wczytujemy innowacje…</LoadingMessage>}
+      {rows !== null && (!rows.length
         ? <StatusMessage>{statusFilter ? "Brak innowacji o wybranym statusie." : "Baza wiedzy jest obecnie pusta."}</StatusMessage>
-        : <ul className="space-y-4">{state.items.map((item) => <li key={item.id} className="space-y-4 rounded-2xl border border-border bg-card p-[24px]">
+        : <ul className="space-y-4">{rows.map((item) => <li key={item.id} className="space-y-4 rounded-2xl border border-border bg-card p-[24px]">
             <div className="space-y-2">
               <h3 className="text-xl font-semibold leading-snug">{item.title}</h3>
               <div className="flex flex-wrap gap-2">
