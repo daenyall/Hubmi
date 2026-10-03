@@ -269,17 +269,33 @@ def submit_feedback(data: TestFeedbackCreate) -> TestFeedbackResponse:
     supabase = get_supabase_client()
     if supabase:
         try:
+            # Weryfikacja powiązania zgłoszenia testowego (application_id) z innowacją
+            if data.application_id:
+                app_check = (
+                    supabase.table("innovation_test_applications")
+                    .select("id, innovation_id")
+                    .eq("id", data.application_id)
+                    .limit(1)
+                    .execute()
+                )
+                app_data = _to_dict_list(app_check.data)
+                if not app_data:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Zgłoszenie testowe '{data.application_id}' nie istnieje.",
+                    )
+                if app_data[0].get("innovation_id") != data.innovation_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Wskazane zgłoszenie pilotażowe nie dotyczy ocenianej innowacji.",
+                    )
+
             res = supabase.table("innovation_feedback").insert(row_data).execute()
             inserted = _to_dict(res.data)
             if inserted:
-                if data.application_id:
-                    try:
-                        supabase.table("innovation_test_applications").update({
-                            "status": "zakonczone",
-                            "updated_at": now_str,
-                        }).eq("id", data.application_id).execute()
-                    except Exception:
-                        pass
+                # Zgodnie z punktem 9 audytu: publiczne dodanie opinii NIE MOŻE automatycznie
+                # zmieniać statusu zgłoszenia testowego na 'zakonczone'. Zmiana statusu pilotażu
+                # jest wyłączną domeną autoryzowanego koordynatora ROPS Kraków.
 
                 return TestFeedbackResponse(
                     id=str(inserted.get("id", feedback_id)),
@@ -304,7 +320,7 @@ def submit_feedback(data: TestFeedbackCreate) -> TestFeedbackResponse:
             if "23503" in err_str:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Innowacja lub zgłoszenie powiązane z oceną nie istnieje.",
+                    detail="Innowacja lub zgłoszenie powiązane z oceną nie istnieje.",
                 )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

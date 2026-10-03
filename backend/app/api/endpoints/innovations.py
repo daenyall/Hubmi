@@ -13,28 +13,27 @@ router = APIRouter()
 @router.get("/innovations", response_model=List[MatchItem])
 async def list_innovations(
     category: Optional[str] = Query(None, description="Filtruj według kategorii (np. Seniorzy, Dostępność)"),
-    status: Optional[str] = Query("sprawdzone", description="Filtruj według statusu (domyślnie 'sprawdzone'). Użyj 'all' aby pobrać wszystkie."),
     limit: int = Query(50, ge=1, le=100, description="Maksymalna liczba zwróconych innowacji"),
     offset: int = Query(0, ge=0, description="Przesunięcie paginacji"),
 ):
     """
     Pobiera listę zaimportowanych innowacji społecznych ROPS Kraków.
-    Domyślnie zwraca wyłącznie innowacje ze statusem 'sprawdzone' (opublikowane).
-    Umożliwia przeglądanie bazy, filtrowanie po kategorii, statusie oraz paginację.
+    Publiczny katalog zwraca WYŁĄCZNIE innowacje zweryfikowane i opublikowane (status='sprawdzone').
+    Szkice i innowacje robocze nie są udostępniane publicznie (dostępne wyłącznie w autoryzowanym API Admina ROPS).
     """
     supabase = get_supabase_client()
     if not supabase:
         raise HTTPException(status_code=503, detail="Baza danych Supabase nie jest skonfigurowana.")
 
     try:
-        query = supabase.table("innovations").select(
-            "id, title, description, target_group, category, why_relevant, source_url, status"
+        # Publiczne API zwraca bezwzględnie tylko status 'sprawdzone'
+        query = (
+            supabase.table("innovations")
+            .select("id, title, description, target_group, category, why_relevant, source_url, status")
+            .eq("status", "sprawdzone")
         )
         if category:
             query = query.eq("category", category)
-        # Domyślnie filtruj tylko sprawdzone; 'all' wyłącza filtr
-        if status and status != "all":
-            query = query.eq("status", status)
 
         res = query.range(offset, offset + limit - 1).execute()
         data: Any = res.data or []
@@ -66,7 +65,8 @@ async def list_innovations(
 async def get_innovation_by_id(innovation_id: str):
     """
     Pobiera pojedynczą innowację społeczną po jej identyfikatorze ID.
-    Jeśli innowacja nie istnieje, zwraca status 404.
+    W widoku publicznym zwracane są WYŁĄCZNIE innowacje zweryfikowane (status='sprawdzone').
+    Jeśli innowacja nie istnieje lub jest nieopublikowanym szkicem, zwraca status 404.
     """
     # Walidacja formatu ID (inv_XXXX lub UUID)
     if not is_valid_innovation_id(innovation_id):
@@ -80,10 +80,12 @@ async def get_innovation_by_id(innovation_id: str):
         raise HTTPException(status_code=503, detail="Baza danych Supabase nie jest skonfigurowana.")
 
     try:
+        # W widoku publicznym odczytujemy wyłącznie pozycje sprawdzone
         res = (
             supabase.table("innovations")
             .select("id, title, description, target_group, category, why_relevant, source_url, status")
             .eq("id", innovation_id)
+            .eq("status", "sprawdzone")
             .execute()
         )
         data: Any = res.data or []

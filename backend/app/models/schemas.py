@@ -89,6 +89,9 @@ class AdaptResponse(BaseModel):
     estimated_budget_pln: Optional[str] = Field(default=None, description="Szacunkowy budżet wdrożenia w PLN")
     recommended_grants: Optional[list[str]] = Field(default=None, description="Rekomendowane źródła finansowania (FERS, PFRON, Fundusze Sołeckie, etc.)")
     key_kpis: Optional[list[str]] = Field(default=None, description="Kluczowe wskaźniki sukcesu wdrożenia (KPI)")
+    is_ai_generated: bool = Field(default=True, description="Czy plan został wygenerowany przez generative AI czy szablon awaryjny")
+    generation_source: str = Field(default="gemini", description="Źródło wygenerowania: 'gemini', 'openai' lub 'template_fallback'")
+    disclaimer: Optional[str] = Field(default=None, description="Zastrzeżenie prawne i informacja o orientacyjnym charakterze naborów")
 
 
 # ==============================================================================

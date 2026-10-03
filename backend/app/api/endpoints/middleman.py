@@ -43,6 +43,9 @@ async def adapt_innovation(request: AdaptRequest):
             estimated_budget_pln=plan_result.get("estimated_budget_pln"),
             recommended_grants=plan_result.get("recommended_grants"),
             key_kpis=plan_result.get("key_kpis"),
+            is_ai_generated=plan_result.get("is_ai_generated", False),
+            generation_source=plan_result.get("generation_source", "template_fallback"),
+            disclaimer=plan_result.get("disclaimer"),
         )
     except HTTPException:
         raise

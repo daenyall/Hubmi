@@ -80,7 +80,14 @@ async def match_problem(request: MatchRequest, req: Request):
         )
 
     # 2. Wyliczenie zoptymalizowanego embeddingu dla zapytania (LRU cache)
-    query_vector = create_embedding(query_text)
+    try:
+        query_vector = create_embedding(query_text)
+    except RuntimeError as e:
+        logger.error("Błąd tworzenia wektora AI: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Usługa wektoryzacji AI jest chwilowo niedostępna ({e}). Spróbuj ponownie za chwilę.",
+        )
 
     threshold = request.threshold if request.threshold is not None else 0.2
     limit = request.limit if request.limit is not None else 4
@@ -93,15 +100,23 @@ async def match_problem(request: MatchRequest, req: Request):
 
     # 3. Odpytanie procedury RPC match_innovations w Supabase
     try:
-        rpc_limit = limit * 4 if request.category else limit * 2
-        rpc_res = supabase.rpc(
-            "match_innovations",
-            {
-                "query_embedding": query_vector,
-                "match_threshold": max(0.05, threshold - 0.15),
-                "match_count": rpc_limit,
-            },
-        ).execute()
+        rpc_limit = max(50, limit * 5)
+        rpc_params = {
+            "query_embedding": query_vector,
+            "match_threshold": max(0.05, threshold - 0.15),
+            "match_count": rpc_limit,
+        }
+        if request.category:
+            rpc_params["filter_category"] = request.category
+
+        try:
+            rpc_res = supabase.rpc("match_innovations", rpc_params).execute()
+        except Exception as rpc_err:
+            if "filter_category" in rpc_params and "filter_category" in str(rpc_err).lower():
+                rpc_params.pop("filter_category")
+                rpc_res = supabase.rpc("match_innovations", rpc_params).execute()
+            else:
+                raise rpc_err
 
         data: Any = rpc_res.data
         if isinstance(data, list):

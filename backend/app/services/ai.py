@@ -97,40 +97,62 @@ def _fallback_deterministic_embedding(text: str, dim: int = 1536) -> List[float]
     return vector
 
 
+def get_active_embedding_model() -> str:
+    """
+    Zwraca jednoznaczny identyfikator aktywnego modelu embeddingów.
+    Baza ROPS i pgvector są zsynchronizowane z przestrzenią wektorową gemini-embedding-2 (1536D).
+    """
+    if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip():
+        return "gemini-embedding-2"
+    if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.strip():
+        return "text-embedding-3-small"
+    return "deterministic-test-fallback"
+
+
 @lru_cache(maxsize=1024)
-def _get_embedding_tuple(clean_text: str) -> tuple:
-    """Pobiera embedding jako niezmienną krotkę z buforowaniem LRU (Gemini -> OpenAI -> Fallback)."""
-    # 1. Próba z Google Gemini
-    if settings.GEMINI_API_KEY:
+def _get_embedding_tuple(clean_text: str, model_name: Optional[str] = None) -> tuple:
+    """
+    Pobiera embedding jako niezmienną krotkę z buforowaniem LRU.
+    Klucz bufora zawiera model_name, zapobiegając mieszaniu różnych przestrzeni wektorowych.
+    Po awarii aktywnego modelu zwraca jawny wyjątek zamiast cichego przełączania przestrzeni.
+    """
+    active_model = model_name or get_active_embedding_model()
+
+    if active_model == "gemini-embedding-2":
         gemini_vec = _get_gemini_embedding(clean_text)
         if gemini_vec:
             return tuple(gemini_vec)
+        logger.error("Błąd usługi embeddingów Gemini: brak odpowiedzi lub błąd API.")
+        raise RuntimeError("Błąd usługi embeddingów Gemini: API zwróciło błąd lub brak odpowiedzi. Sprawdź klucz GEMINI_API_KEY.")
 
-    # 2. Próba z OpenAI
-    client = get_openai_client()
-    if client:
-        try:
-            response = client.embeddings.create(
-                model="text-embedding-3-small",
-                input=clean_text,
-            )
-            return tuple(response.data[0].embedding)
-        except Exception as e:
-            logger.warning("OpenAI embedding error: %s. Falling back to deterministic embedding.", e)
+    if active_model == "text-embedding-3-small":
+        client = get_openai_client()
+        if client:
+            try:
+                response = client.embeddings.create(
+                    model="text-embedding-3-small",
+                    input=clean_text,
+                )
+                return tuple(response.data[0].embedding)
+            except Exception as e:
+                logger.error("OpenAI embedding error: %s", e)
+                raise RuntimeError(f"Błąd usługi embeddingów OpenAI: {e}")
+        raise RuntimeError("Klient OpenAI nie jest skonfigurowany.")
 
-    # 3. Zapasowy silnik deterministyczny
+    # Tryb awaryjny wyłącznie w środowisku testowym bez skonfigurowanych kluczy
     return tuple(_fallback_deterministic_embedding(clean_text))
 
 
 def create_embedding(text: str) -> List[float]:
     """
-    Tworzy embedding dla danego tekstu za pomocą Google Gemini / OpenAI
-    z LRU cache (1024 wpisy) i fallbackiem deterministycznym.
+    Tworzy embedding dla danego tekstu za pomocą jednego, aktywnego modelu.
+    Gwarantuje spójność przestrzeni wektorowej (1536D) i jawną sygnalizację błędów.
     """
     clean_text = " ".join(text.strip().split())
     if not clean_text:
         return [0.0] * 1536
-    return list(_get_embedding_tuple(clean_text))
+    active_model = get_active_embedding_model()
+    return list(_get_embedding_tuple(clean_text, active_model))
 
 
 def _build_adaptation_prompt(
@@ -266,13 +288,13 @@ def _generate_gemini_plan(
             key_partners=key_partners,
         )
 
-        for model_name in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+        for model_name in ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"]:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2500},
+                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2000},
             }
-            res = requests.post(url, json=payload, timeout=12)
+            res = requests.post(url, json=payload, timeout=8)
             if res.status_code == 200:
                 data = res.json()
                 candidates = data.get("candidates", [])
@@ -297,23 +319,12 @@ def generate_adaptation_plan(
 ) -> Dict[str, Any]:
     """
     Funkcja Asystenta Adaptacji (Middleman AI) generująca plan wdrożenia innowacji
-    dla konkretnej gminy/instytucji (Gemini -> OpenAI -> Fallback)
-    wraz ze strukturalnymi wskaźnikami budżetu, grantów i KPI.
+    dla konkretnej gminy/instytucji z jawną proweniencją (Gemini -> OpenAI -> Fallback szablonowy).
+    Wskaźniki budżetu, grantów i KPI są dostosowane do podanego kontekstu i opatrzone notą doradczą.
     """
-    default_budget = budget_range or "12 000 – 25 000 PLN"
-    default_grants = [
-        "Inkubator Innowacji Społecznych ROPS Kraków (grant testujący)",
-        "FERS - Europejski Fundusz Społeczny Plus (deinstytucjonalizacja usług)",
-        "PFRON - Dostępność i wyrównywanie szans",
-        "Fundusze Sołeckie / Budżet Obywatelski gminy",
-    ]
-    default_kpis = [
-        "Min. 20 beneficjentów objętych działaniami w fazie pilotażu",
-        "Min. 85% satysfakcji odbiorców w ankiecie testera ROPS",
-        "Partnerstwo z min. 2 lokalnymi organizacjami (OSP / KGW / CUS)",
-        "Zgodność ze standardami dostępności WCAG 2.1 AA",
-    ]
-
+    muni_type_text = municipality_type or "Gmina / CUS"
+    budget_text = budget_range or "15 000 – 30 000 PLN (orientacyjny koszt fazy pilotażowej)"
+    
     # 1. Próba z Gemini
     if settings.GEMINI_API_KEY:
         gemini_plan = _generate_gemini_plan(
@@ -328,9 +339,22 @@ def generate_adaptation_plan(
         if gemini_plan:
             return {
                 "adaptation_plan": gemini_plan,
-                "estimated_budget_pln": default_budget,
-                "recommended_grants": default_grants,
-                "key_kpis": default_kpis,
+                "estimated_budget_pln": budget_text,
+                "recommended_grants": [
+                    "Inkubator Innowacji Społecznych ROPS Kraków (orientacyjny grant testujący)",
+                    "FERS - Fundusze Europejskie dla Rozwoju Społecznego (potencjalny nabór)",
+                    "PFRON - Dostępność i wyrównywanie szans",
+                    "Fundusze Sołeckie / GKRPA",
+                ],
+                "key_kpis": [
+                    f"Objęcie działaniami min. 15-25 mieszkańców w zgłaszającej się jednostce ({muni_type_text})",
+                    "Min. 85% pozytywnych ocen w formularzu ewaluacyjnym testera ROPS",
+                    "Sformalizowanie partnerstwa z lokalnymi organizacjami (np. CUS, OSP, KGW)",
+                    "Zgodność rozwiązań ze standardami dostępności WCAG 2.1 AA / ETR",
+                ],
+                "is_ai_generated": True,
+                "generation_source": "gemini",
+                "disclaimer": "Przedstawione źródła finansowania oraz szacunki budżetowe mają charakter orientacyjny i doradczy. Dostępność naborów wymaga weryfikacji w aktualnych harmonogramach ROPS Kraków.",
             }
 
     # 2. Próba z OpenAI
@@ -357,14 +381,25 @@ def generate_adaptation_plan(
             if openai_text.strip():
                 return {
                     "adaptation_plan": openai_text.strip(),
-                    "estimated_budget_pln": default_budget,
-                    "recommended_grants": default_grants,
-                    "key_kpis": default_kpis,
+                    "estimated_budget_pln": budget_text,
+                    "recommended_grants": [
+                        "Inkubator Innowacji Społecznych ROPS Kraków (orientacyjny grant testujący)",
+                        "FERS - Fundusze Europejskie dla Rozwoju Społecznego",
+                        "PFRON - Dostępność i wyrównywanie szans",
+                    ],
+                    "key_kpis": [
+                        f"Objęcie działaniami min. 15-25 mieszkańców w jednostce ({muni_type_text})",
+                        "Min. 85% zadowolenia w ankiecie ewaluacyjnej ROPS",
+                        "Zgodność ze standardami dostępności WCAG 2.1 AA",
+                    ],
+                    "is_ai_generated": True,
+                    "generation_source": "openai",
+                    "disclaimer": "Przedstawione źródła finansowania oraz szacunki budżetowe mają charakter orientacyjny i doradczy. Dostępność naborów wymaga weryfikacji w aktualnych harmonogramach ROPS Kraków.",
                 }
         except Exception as e:
             logger.warning("OpenAI completion error: %s", e)
 
-    # 3. Fallbackowy szkielet planu z tabelą i partnerami lokalnymi
+    # 3. Szablon awaryjny (jawnie oznaczony jako template_fallback)
     fallback_text = _build_fallback_adaptation_plan(
         innovation_title=innovation_title,
         context=context,
@@ -376,7 +411,18 @@ def generate_adaptation_plan(
 
     return {
         "adaptation_plan": fallback_text,
-        "estimated_budget_pln": default_budget,
-        "recommended_grants": default_grants,
-        "key_kpis": default_kpis,
+        "estimated_budget_pln": budget_text,
+        "recommended_grants": [
+            "Inkubator Innowacji Społecznych ROPS Kraków (orientacyjny grant testujący)",
+            "FERS - Fundusze Europejskie dla Rozwoju Społecznego",
+            "PFRON - Dostępność i wyrównywanie szans",
+        ],
+        "key_kpis": [
+            f"Objęcie działaniami min. 15-25 mieszkańców w jednostce ({muni_type_text})",
+            "Min. 85% zadowolenia w ankiecie ewaluacyjnej ROPS",
+            "Zgodność ze standardami dostępności WCAG 2.1 AA",
+        ],
+        "is_ai_generated": False,
+        "generation_source": "template_fallback",
+        "disclaimer": "Plan wygenerowano na podstawie ustandaryzowanego szablonu adaptacyjnego ROPS Kraków (brak aktywnego połączenia z modelem AI). Dane budżetowe i grantowe mają charakter poglądowy.",
     }
