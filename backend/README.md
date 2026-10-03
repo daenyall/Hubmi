@@ -112,3 +112,4 @@ Backend jest w pełni przygotowany do natychmiastowego deploymentu w chmurze:
 - **Szczegółowa instrukcja wdrożenia**: Zobacz [backend/docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md).
 - **Kontrakt API dla Frontendu**: Zobacz [backend/docs/API_CONTRACT_FOR_FRONTEND.md](docs/API_CONTRACT_FOR_FRONTEND.md).
 - **Analiza Kosztów TCO (ROPS Kraków)**: Zobacz [backend/docs/TCO_ESTIMATE.md](docs/TCO_ESTIMATE.md).
+- **Architektura Systemowa i Przewodnik Oceny (Jury)**: Zobacz [backend/docs/ARCHITECTURE_AND_EVALUATION.md](docs/ARCHITECTURE_AND_EVALUATION.md).
