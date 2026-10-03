@@ -23,9 +23,18 @@ export const FIELD_LABELS: Record<keyof InnovationDraft, string> = {
   category: "Kategoria", why_relevant: "Dlaczego warto", source_url: "Źródło", status: "Status",
 };
 
-/** Identyfikator nadaje backend; dopuszczamy wyłącznie postać bezpieczną w ścieżce URL. */
+/** Identyfikator nadaje backend; wzorzec odpowiada is_valid_innovation_id (1-64 znaki). */
 export function isInnovationId(value: string): boolean {
-  return /^[A-Za-z0-9_-]{1,200}$/.test(value);
+  return /^[A-Za-z0-9_-]{1,64}$/.test(value);
+}
+
+/**
+ * Backend sanityzuje zapis i skleja ciągi spacji oraz tabulatorów w jedną spację
+ * (app/utils/sanitize.py). Porównujemy po tej samej normalizacji, żeby nie zgłaszać
+ * niepotwierdzonego zapisu tylko dlatego, że użytkownik wpisał podwójną spację.
+ */
+export function normalizeStored(value: string): string {
+  return value.replace(/[ \t]+/g, " ").trim();
 }
 
 export function isPublicHttpUrl(value: string): boolean {
@@ -123,7 +132,9 @@ export function firstInvalidField(errors: DraftErrors): keyof InnovationDraft | 
 
 /** Pola, których ponowny odczyt rekordu nie potwierdził. Puste = zapis potwierdzony. */
 export function mismatchedFields(record: AdminInnovation, expected: InnovationDraft): string[] {
-  return DRAFT_FIELD_ORDER.filter((field) => record[field] !== expected[field]).map((field) => FIELD_LABELS[field]);
+  return DRAFT_FIELD_ORDER
+    .filter((field) => normalizeStored(record[field]) !== normalizeStored(expected[field]))
+    .map((field) => FIELD_LABELS[field]);
 }
 
 export function collectAdminCategories(items: AdminInnovation[]): string[] {

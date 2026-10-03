@@ -233,3 +233,23 @@ test("niepoprawna odpowiedź usługi nie jest raportowana jako zapis", async (t)
   recorder(t, [json({ id: "", title: "" }, 201)]);
   await assert.rejects(() => api.create(draft), kind("response"));
 });
+
+test("potwierdzenie toleruje sklejanie spacji przez sanityzację backendu", () => {
+  const typed = { ...draft, description: "Opis  z   podwójnymi\tspacjami i tabulatorem." };
+  const stored = model.parseAdminInnovation(row({ description: "Opis z podwójnymi spacjami i tabulatorem." }));
+  assert.deepEqual(model.mismatchedFields(stored, model.draftPayload(typed)), []);
+  assert.equal(model.normalizeStored("  a \t b  "), "a b");
+  // Usunięcie treści przez sanityzację nadal musi być zgłoszone jako niepotwierdzone.
+  const strippedByBackend = model.parseAdminInnovation(row({ description: "Opis bez wstawki skryptu." }));
+  assert.deepEqual(
+    model.mismatchedFields(strippedByBackend, model.draftPayload({ ...draft, description: "Opis <script>alert(1)</script> ze wstawka." })),
+    ["Opis"],
+  );
+});
+
+test("identyfikator dłuższy niż 64 znaki jest odrzucany jak w is_valid_innovation_id", () => {
+  assert.equal(model.isInnovationId("inv_72784057"), true);
+  assert.equal(model.isInnovationId("a".repeat(64)), true);
+  assert.equal(model.isInnovationId("a".repeat(65)), false);
+  assert.equal(model.isInnovationId("inv/01"), false);
+});
