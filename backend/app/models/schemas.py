@@ -89,13 +89,13 @@ class AdaptResponse(BaseModel):
 # ==============================================================================
 
 class SubmissionCreate(BaseModel):
-    title: str = Field("Fiszka innowacji społecznej", min_length=2, max_length=200, description="Tytuł innowacji/pomysłu")
+    title: str = Field(default="Fiszka innowacji społecznej", min_length=2, max_length=200, description="Tytuł innowacji/pomysłu")
     problem_description: str = Field(..., min_length=3, max_length=10000, description="Opis problemu lub potrzeby")
-    solution_description: Optional[str] = Field("", max_length=10000, description="Istota proponowanego rozwiązania")
-    target_group: Optional[str] = Field("Mieszkańcy Małopolski", max_length=4000, description="Odbiorcy rozwiązania")
-    implementation_stage: str = Field("pomysl", description="Etap: pomysl, prototyp, pilotaz, wdrozenie")
-    institution_name: Optional[str] = Field(None, max_length=200, description="Nazwa instytucji (np. Gmina, NGO)")
-    applicant_type: str = Field("JST", description="Typ zgłaszającego: JST, NGO, CUS, Mieszkaniec")
+    solution_description: Optional[str] = Field(default="", max_length=10000, description="Istota proponowanego rozwiązania")
+    target_group: Optional[str] = Field(default="Mieszkańcy Małopolski", max_length=4000, description="Odbiorcy rozwiązania")
+    implementation_stage: str = Field(default="pomysl", description="Etap: pomysl, prototyp, pilotaz, wdrozenie")
+    institution_name: Optional[str] = Field(default=None, max_length=200, description="Nazwa instytucji (np. Gmina, NGO)")
+    applicant_type: str = Field(default="JST", description="Typ zgłaszającego: JST, NGO, CUS, Mieszkaniec")
     applicant_name: Optional[str] = None
     applicant_email: Optional[str] = None
     matched_innovation_id: Optional[str] = None
@@ -127,11 +127,11 @@ class SubmissionStatusUpdate(BaseModel):
         description="Nowy status zgłoszenia: 'nowe', 'weryfikacja', 'zaakceptowane', 'odrzucone'",
     )
     official_response: Optional[str] = Field(
-        None,
+        default=None,
         description="Oficjalna informacja zwrotna od eksperta ROPS Kraków",
     )
     notes: Optional[str] = Field(
-        None,
+        default=None,
         description="Wewnętrzne notatki urzędowe ROPS",
     )
 

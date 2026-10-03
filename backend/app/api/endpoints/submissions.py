@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.security import get_current_user, UserSession
@@ -12,6 +12,20 @@ from app.models.schemas import (
 )
 
 router = APIRouter(prefix="/submissions", tags=["Submissions"])
+
+
+def _to_dict_list(data: Any) -> List[Dict[str, Any]]:
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    return []
+
+
+def _to_dict(data: Any) -> Dict[str, Any]:
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+        return data[0]
+    return {}
 
 
 @router.get("/my", response_model=List[SubmissionResponse])
@@ -37,27 +51,27 @@ async def get_my_submissions(
             query = query.eq("user_id", user.user_id)
 
         res = query.order("created_at", desc=True).execute()
-        rows = res.data or []
+        rows = _to_dict_list(res.data)
 
         return [
             SubmissionResponse(
-                id=str(r.get("id")),
+                id=str(r.get("id", "")),
                 user_id=r.get("user_id"),
-                title=r.get("title") or "Fiszka innowacji",
-                problem_description=r.get("problem_description", ""),
-                solution_description=r.get("solution_description"),
-                target_group=r.get("target_group"),
-                implementation_stage=r.get("implementation_stage") or "pomysl",
-                institution_name=r.get("institution_name"),
-                applicant_type=r.get("applicant_type", "JST"),
-                applicant_name=r.get("applicant_name"),
-                applicant_email=r.get("applicant_email"),
-                matched_innovation_id=r.get("matched_innovation_id"),
-                status=r.get("status", "nowe"),
-                official_response=r.get("official_response"),
-                notes=r.get("notes"),
-                created_at=r.get("created_at"),
-                updated_at=r.get("updated_at"),
+                title=str(r.get("title") or "Fiszka innowacji"),
+                problem_description=str(r.get("problem_description", "")),
+                solution_description=str(r.get("solution_description")) if r.get("solution_description") is not None else None,
+                target_group=str(r.get("target_group")) if r.get("target_group") is not None else None,
+                implementation_stage=str(r.get("implementation_stage") or "pomysl"),
+                institution_name=str(r.get("institution_name")) if r.get("institution_name") is not None else None,
+                applicant_type=str(r.get("applicant_type", "JST")),
+                applicant_name=str(r.get("applicant_name")) if r.get("applicant_name") is not None else None,
+                applicant_email=str(r.get("applicant_email")) if r.get("applicant_email") is not None else None,
+                matched_innovation_id=str(r.get("matched_innovation_id")) if r.get("matched_innovation_id") is not None else None,
+                status=str(r.get("status", "nowe")),
+                official_response=str(r.get("official_response")) if r.get("official_response") is not None else None,
+                notes=str(r.get("notes")) if r.get("notes") is not None else None,
+                created_at=str(r.get("created_at")) if r.get("created_at") is not None else None,
+                updated_at=str(r.get("updated_at")) if r.get("updated_at") is not None else None,
             )
             for r in rows
         ]
@@ -101,30 +115,31 @@ async def create_submission(
 
     try:
         res = supabase.table("submissions").insert(row_data).execute()
-        if not res.data:
+        inserted_list = _to_dict_list(res.data)
+        if not inserted_list:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Błąd podczas tworzenia fiszki w bazie.",
             )
-        inserted = res.data[0]
+        inserted = inserted_list[0]
         return SubmissionResponse(
-            id=str(inserted.get("id")),
+            id=str(inserted.get("id", "")),
             user_id=inserted.get("user_id"),
-            title=inserted.get("title") or payload.title,
-            problem_description=inserted.get("problem_description", payload.problem_description),
-            solution_description=inserted.get("solution_description"),
-            target_group=inserted.get("target_group"),
-            implementation_stage=inserted.get("implementation_stage") or "pomysl",
-            institution_name=inserted.get("institution_name"),
-            applicant_type=inserted.get("applicant_type", "JST"),
-            applicant_name=inserted.get("applicant_name"),
-            applicant_email=inserted.get("applicant_email"),
-            matched_innovation_id=inserted.get("matched_innovation_id"),
-            status=inserted.get("status", "nowe"),
-            official_response=inserted.get("official_response"),
-            notes=inserted.get("notes"),
-            created_at=inserted.get("created_at"),
-            updated_at=inserted.get("updated_at"),
+            title=str(inserted.get("title") or payload.title),
+            problem_description=str(inserted.get("problem_description", payload.problem_description)),
+            solution_description=str(inserted.get("solution_description")) if inserted.get("solution_description") is not None else None,
+            target_group=str(inserted.get("target_group")) if inserted.get("target_group") is not None else None,
+            implementation_stage=str(inserted.get("implementation_stage") or "pomysl"),
+            institution_name=str(inserted.get("institution_name")) if inserted.get("institution_name") is not None else None,
+            applicant_type=str(inserted.get("applicant_type", "JST")),
+            applicant_name=str(inserted.get("applicant_name")) if inserted.get("applicant_name") is not None else None,
+            applicant_email=str(inserted.get("applicant_email")) if inserted.get("applicant_email") is not None else None,
+            matched_innovation_id=str(inserted.get("matched_innovation_id")) if inserted.get("matched_innovation_id") is not None else None,
+            status=str(inserted.get("status", "nowe")),
+            official_response=str(inserted.get("official_response")) if inserted.get("official_response") is not None else None,
+            notes=str(inserted.get("notes")) if inserted.get("notes") is not None else None,
+            created_at=str(inserted.get("created_at")) if inserted.get("created_at") is not None else None,
+            updated_at=str(inserted.get("updated_at")) if inserted.get("updated_at") is not None else None,
         )
     except Exception as e:
         raise HTTPException(
@@ -151,12 +166,13 @@ async def get_submission_messages(
 
     # Weryfikacja uprawnień do tego zgłoszenia
     sub_res = supabase.table("submissions").select("id, user_id").eq("id", submission_id).execute()
-    if not sub_res.data:
+    sub_list = _to_dict_list(sub_res.data)
+    if not sub_list:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Zgłoszenie nie zostało odnalezione.",
         )
-    sub = sub_res.data[0]
+    sub = sub_list[0]
 
     # Sprawdzenie czy użytkownik to autor lub admin
     if not user.is_admin:
@@ -174,15 +190,15 @@ async def get_submission_messages(
             .order("created_at", desc=False)
             .execute()
         )
-        rows = msg_res.data or []
+        rows = _to_dict_list(msg_res.data)
         return [
             MessageItemResponse(
-                id=str(m.get("id")),
-                submission_id=str(m.get("submission_id")),
-                sender_role=m.get("sender_role", "applicant"),
-                sender_name=m.get("sender_name", "Użytkownik"),
-                message=m.get("message", ""),
-                created_at=m.get("created_at"),
+                id=str(m.get("id", "")),
+                submission_id=str(m.get("submission_id", "")),
+                sender_role=str(m.get("sender_role", "applicant")),
+                sender_name=str(m.get("sender_name", "Użytkownik")),
+                message=str(m.get("message", "")),
+                created_at=str(m.get("created_at")) if m.get("created_at") is not None else None,
             )
             for m in rows
         ]
@@ -212,12 +228,13 @@ async def post_submission_message(
 
     # Weryfikacja powiązanego zgłoszenia
     sub_res = supabase.table("submissions").select("id, user_id").eq("id", submission_id).execute()
-    if not sub_res.data:
+    sub_list = _to_dict_list(sub_res.data)
+    if not sub_list:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Zgłoszenie nie zostało odnalezione.",
         )
-    sub = sub_res.data[0]
+    sub = sub_list[0]
 
     # Sprawdzenie uprawnień
     if not user.is_admin:
@@ -241,19 +258,20 @@ async def post_submission_message(
 
     try:
         res = supabase.table("submission_messages").insert(row).execute()
-        if not res.data:
+        inserted_list = _to_dict_list(res.data)
+        if not inserted_list:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Błąd zapisu wiadomości w bazie.",
             )
-        inserted = res.data[0]
+        inserted = inserted_list[0]
         return MessageItemResponse(
-            id=str(inserted.get("id")),
-            submission_id=str(inserted.get("submission_id")),
-            sender_role=inserted.get("sender_role", sender_role),
-            sender_name=inserted.get("sender_name", sender_name),
-            message=inserted.get("message", payload.message),
-            created_at=inserted.get("created_at"),
+            id=str(inserted.get("id", "")),
+            submission_id=str(inserted.get("submission_id", "")),
+            sender_role=str(inserted.get("sender_role", sender_role)),
+            sender_name=str(inserted.get("sender_name", sender_name)),
+            message=str(inserted.get("message", payload.message)),
+            created_at=str(inserted.get("created_at")) if inserted.get("created_at") is not None else None,
         )
     except Exception as e:
         raise HTTPException(

@@ -18,7 +18,7 @@ class TestWebhooksAndNotifications:
     def test_record_submission_event(self):
         """Zdarzenie zmiany statusu jest poprawnie rejestrowane w logu audytowym."""
         event_id = record_submission_event(
-            submission_id="sub-test-123",
+            submission_id="11111111-1111-4111-8111-111111111111",
             old_status="nowe",
             new_status="zaakceptowane",
             changed_by="ekspert@rops.krakow.pl",
@@ -28,7 +28,7 @@ class TestWebhooksAndNotifications:
 
         events = get_recent_events(limit=10)
         assert len(events) > 0
-        matching = [e for e in events if e.get("submission_id") == "sub-test-123"]
+        matching = [e for e in events if e.get("submission_id") == "11111111-1111-4111-8111-111111111111"]
         assert len(matching) > 0
         assert matching[0]["new_status"] == "zaakceptowane"
 
@@ -48,7 +48,7 @@ class TestWebhooksAndNotifications:
     def test_notify_status_change_dispatcher(self):
         """Główny dyspozytor powiadomień przetwarza e-mail i log zdarzenia."""
         res = notify_status_change(
-            submission_id="sub-test-456",
+            submission_id="22222222-2222-4222-8222-222222222222",
             old_status="weryfikacja",
             new_status="zaakceptowane",
             title="Dostępny Ogród Sensoryczny",

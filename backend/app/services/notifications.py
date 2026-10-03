@@ -34,8 +34,9 @@ def record_submission_event(
     if supabase:
         try:
             res = supabase.table("submission_events").insert(event_data).execute()
-            if res.data and len(res.data) > 0:
-                return str(res.data[0].get("id"))
+            data_list = [d for d in res.data if isinstance(d, dict)] if isinstance(res.data, list) else []
+            if data_list:
+                return str(data_list[0].get("id", ""))
         except Exception as e:
             print(f"Uwaga: Nie udało się zapisać zdarzenia do Supabase (być może brak tabeli submission_events): {e}")
 
@@ -52,8 +53,9 @@ def get_recent_events(limit: int = 50) -> list:
     if supabase:
         try:
             res = supabase.table("submission_events").select("*").order("created_at", desc=True).limit(limit).execute()
-            if res.data:
-                return res.data
+            rows = [d for d in res.data if isinstance(d, dict)] if isinstance(res.data, list) else []
+            if rows:
+                return rows
         except Exception:
             pass
     return list(reversed(_IN_MEMORY_EVENTS[-limit:]))
