@@ -3,6 +3,11 @@
 -- MostMI / ROPS Kraków (HackYeah 2026)
 -- ==============================================================================
 
+-- 1. Usunięcie starej wersji (zapobiega konfliktom przeciążenia funkcji w PostgREST)
+DROP FUNCTION IF EXISTS public.match_innovations(vector, float, int);
+DROP FUNCTION IF EXISTS public.match_innovations(vector, float, int, text);
+
+-- 2. Utworzenie ulepszonej funkcji RPC z opcjonalnym filtrowaniem po kategorii
 CREATE OR REPLACE FUNCTION match_innovations (
     query_embedding vector(1536),
     match_threshold FLOAT DEFAULT 0.20,
