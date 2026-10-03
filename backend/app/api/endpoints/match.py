@@ -1,11 +1,18 @@
 import logging
 import re
 from typing import List, Any, Optional, Set
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from app.db.supabase import get_supabase_client
 from app.models.schemas import MatchRequest, MatchResponse, MatchItem
 from app.services.ai import create_embedding
 from app.services.query_validator import is_gibberish
+from app.utils.helpers import to_str, to_float
+from app.utils.sanitize import sanitize_text, safe_error_message
+
+try:
+    from app.main import limiter
+except ImportError:
+    limiter = None
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -29,20 +36,12 @@ POLISH_STOPWORDS: Set[str] = {
 }
 
 
-def _to_str(val: Any) -> Optional[str]:
-    return str(val).strip() if val is not None and str(val).strip() else None
 
 
-def _to_float(val: Any, default: float = 0.85) -> float:
-    try:
-        f = float(val) if val is not None else default
-        return round(f, 4)
-    except (ValueError, TypeError):
-        return default
 
 
 @router.post("/match", response_model=MatchResponse)
-async def match_problem(request: MatchRequest):
+async def match_problem(request: MatchRequest, req: Request):
     """
     Obligatoryjny moduł Matchmakingu (Wyszukiwarka Semantyczno-Hybrydowa):
     1. Filtruje bełkot i losowe znaki klawiatury (is_gibberish), chroniąc przed halucynacjami.
@@ -50,7 +49,7 @@ async def match_problem(request: MatchRequest):
     3. Stosuje hybrydowe wzmocnienie leksykalne (Hybrid Lexical Boost) dla kluczowych słów w tytule/kategorii.
     4. Zwraca wyłącznie sprawdzone innowacje ROPS Kraków, a przy braku dopasowań – ustrukturyzowane porady.
     """
-    query_text = request.problem_description.strip()
+    query_text = sanitize_text(request.problem_description.strip())
     if len(query_text) < 3:
         raise HTTPException(
             status_code=400,
@@ -113,7 +112,7 @@ async def match_problem(request: MatchRequest):
         logger.error("RPC match_innovations execution failed: %s", e)
         raise HTTPException(
             status_code=502,
-            detail=f"Błąd silnika wektorowego bazy danych: {str(e)}",
+            detail=safe_error_message("wyszukiwanie innowacji"),
         )
 
     # 4. Hybrydowy scoring i filtrowanie
@@ -124,7 +123,7 @@ async def match_problem(request: MatchRequest):
         if item_status != "sprawdzone":
             continue
 
-        item_category = _to_str(item.get("category"))
+        item_category = to_str(item.get("category"))
         if request.category and item_category != request.category:
             continue
 
@@ -150,7 +149,7 @@ async def match_problem(request: MatchRequest):
                 lexical_boost += 0.02
 
         lexical_boost = min(lexical_boost, 0.20)
-        base_sim = _to_float(item.get("similarity_score"), 0.5)
+        base_sim = to_float(item.get("similarity_score"), 0.5)
         hybrid_score = min(round(base_sim + lexical_boost, 4), 0.99)
 
         if hybrid_score >= threshold:
@@ -159,11 +158,11 @@ async def match_problem(request: MatchRequest):
                     id=str(item.get("id", "")).strip(),
                     title=item_title,
                     similarity_score=hybrid_score,
-                    why_relevant=_to_str(item.get("why_relevant")),
-                    source_url=_to_str(item.get("source_url")),
-                    target_group=_to_str(item.get("target_group")),
+                    why_relevant=to_str(item.get("why_relevant")),
+                    source_url=to_str(item.get("source_url")),
+                    target_group=to_str(item.get("target_group")),
                     category=item_category,
-                    description=_to_str(item.get("description")),
+                    description=to_str(item.get("description")),
                     status=item_status,
                 )
             )

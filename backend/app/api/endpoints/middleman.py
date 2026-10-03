@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException
+import logging
 from app.models.schemas import AdaptRequest, AdaptResponse
 from app.services.ai import generate_adaptation_plan
+from app.utils.sanitize import sanitize_text, safe_error_message
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -12,26 +16,39 @@ async def adapt_innovation(request: AdaptRequest):
     Dostosowuje wybraną innowację społeczną ROPS do lokalnych uwarunkowań,
     budżetu i zasobów zgłaszającej się gminy/instytucji.
     """
-    if not request.municipality_context or len(request.municipality_context.strip()) < 5:
+    cleaned_context = sanitize_text(request.municipality_context) if request.municipality_context else ""
+    if len(cleaned_context) < 5:
         raise HTTPException(
             status_code=400,
             detail="Podaj szerszy kontekst gminy/instytucji (min. 5 znaków)."
         )
 
-    plan_result = generate_adaptation_plan(
-        innovation_title=request.innovation_title,
-        innovation_desc=request.innovation_description or "",
-        context=request.municipality_context,
-        municipality_type=request.municipality_type,
-        budget_range=request.budget_range,
-        time_horizon=request.time_horizon,
-        key_partners=request.key_partners,
-    )
+    cleaned_title = sanitize_text(request.innovation_title) if request.innovation_title else ""
+    cleaned_desc = sanitize_text(request.innovation_description) if request.innovation_description else ""
 
-    return AdaptResponse(
-        innovation_title=request.innovation_title,
-        adaptation_plan=plan_result["adaptation_plan"],
-        estimated_budget_pln=plan_result.get("estimated_budget_pln"),
-        recommended_grants=plan_result.get("recommended_grants"),
-        key_kpis=plan_result.get("key_kpis"),
-    )
+    try:
+        plan_result = generate_adaptation_plan(
+            innovation_title=cleaned_title,
+            innovation_desc=cleaned_desc,
+            context=cleaned_context,
+            municipality_type=request.municipality_type,
+            budget_range=request.budget_range,
+            time_horizon=request.time_horizon,
+            key_partners=request.key_partners,
+        )
+
+        return AdaptResponse(
+            innovation_title=request.innovation_title,
+            adaptation_plan=plan_result["adaptation_plan"],
+            estimated_budget_pln=plan_result.get("estimated_budget_pln"),
+            recommended_grants=plan_result.get("recommended_grants"),
+            key_kpis=plan_result.get("key_kpis"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Błąd generowania planu adaptacji: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail=safe_error_message(e, "Wystąpił błąd podczas generowania planu adaptacji.")
+        )
