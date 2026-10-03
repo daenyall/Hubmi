@@ -70,3 +70,26 @@ class TestRolesSecurity:
             headers={"X-Admin-Role": "mentor"},
         )
         assert res.status_code != 403
+
+    def test_x_submission_token_does_not_grant_user_identity(self):
+        """Nagłówek X-Submission-Token nie nadaje tożsamości user_id (zwraca 401 Unauthorized)."""
+        res = client.get(
+            "/api/submissions/my",
+            headers={"X-Submission-Token": "20c6a4b3-90e0-426f-ba47-ca4e2f01c602"},
+        )
+        assert res.status_code == 401
+        assert "Wymagane jest zalogowanie" in res.json().get("detail", "")
+
+    def test_create_submission_requires_login(self):
+        """Próba utworzenia fiszki bez tokena JWT zwraca 401 Unauthorized."""
+        res = client.post(
+            "/api/submissions",
+            json={
+                "title": "Próba bez logowania",
+                "problem_description": "Opis problemu bez konta",
+                "implementation_stage": "pomysl",
+            },
+        )
+        assert res.status_code == 401
+        assert "Wymagane jest zalogowanie" in res.json().get("detail", "")
+
