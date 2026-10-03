@@ -166,3 +166,11 @@ test('szczegóły i powiązanie odrzucają rekord o innym ID niż żądane', asy
   await assert.rejects(fixture([ok([]), ok({ ...record, id: other })]).service.get(id), kind('response'));
   await assert.rejects(fixture([ok({ ...innovation, id: 'inv_other' })]).service.getInnovation(innovation.id), kind('response'));
 });
+
+test('anonimowe konto Auth nie zapisuje ani nie odczytuje fiszek', async () => {
+  const f = fixture();
+  f.client.auth.getUser = async () => ({ data: { user: { id: owner, is_anonymous: true } }, error: null });
+  await assert.rejects(f.service.create(draft, id), kind('auth'));
+  await assert.rejects(f.service.list(), kind('auth'));
+  assert.deepEqual(f.calls, []);
+});

@@ -10,6 +10,8 @@ import { AuthGate } from "@/features/auth/login-form";
 import { createSubmissionsService } from "./service";
 import { formatDate, STAGES, STATUS_LABELS } from "./model";
 import { useSubmissionQuery } from "./use-query";
+import { AuthorCommunication } from "@/features/messages/author-communication";
+import type { Submission } from "./model";
 import { LinkedInnovation } from "./innovation-picker";
 
 function ErrorView({ message, retry, access = false }: { message: string; retry: () => void; access?: boolean }) {
@@ -44,6 +46,9 @@ function OwnedDetail({ id }: { id: string }) {
   if (state.status === "loading") return <LoadingMessage>Wczytujemy fiszkę…</LoadingMessage>;
   if (state.status === "error") return <ErrorView message={state.message} access={state.access} retry={retry} />;
   const item = state.data;
+  return <div className="space-y-8"><SubmissionContent item={item} /><AuthorCommunication submissionId={item.id} /></div>;
+}
+export function SubmissionContent({ item }: { item: Submission }) {
   return <article aria-labelledby="submission-title" className="space-y-6">
     <Card className="rounded-2xl border border-border shadow-sm ring-0 [--card-spacing:24px] sm:[--card-spacing:32px]"><CardContent className="space-y-6">
       <div className="space-y-3"><h2 id="submission-title" className="text-2xl font-semibold">{item.title}</h2><Badge variant="secondary" className="h-auto min-h-7 whitespace-normal">{STATUS_LABELS[item.status] ?? "Status nieznany"}</Badge><p className="text-sm text-muted-foreground">Zgłoszono: <time dateTime={item.created_at}>{formatDate(item.created_at)}</time></p></div>

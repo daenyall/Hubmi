@@ -37,6 +37,7 @@ export function createSubmissionsService(client: SupabaseClient = createClient()
     if (error || !data.user || !isUuid(data.user.id)) {
       throw new SubmissionError("auth", "Sesja wygasła lub nie można jej potwierdzić. Zaloguj się ponownie.");
     }
+    if (data.user.is_anonymous === true) throw new SubmissionError("auth", "Zaloguj się na konto email i hasło przygotowane do zgłoszeń. Konto anonimowe nie ma dostępu.");
     return data.user.id;
   }
   async function checkSchema(ownerId: string, signal?: AbortSignal) {

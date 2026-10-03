@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { createRecordId } from "@/lib/uuid";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,13 +20,6 @@ const fields = [
   { key: "solution_description", label: "Istota rozwiązania", hint: "Na czym polega pomysł? Jak będzie działał w praktyce?", max: 10000, rows: 5 },
   { key: "target_group", label: "Odbiorcy", hint: "Kto będzie korzystać z rozwiązania?", max: 4000, rows: 3 },
 ] as const;
-function submissionId() {
-  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
 
 export function SubmissionCreator({ initialInnovationId = "" }: { initialInnovationId?: string }) {
   const auth = useAuth();
@@ -60,7 +54,7 @@ export function SubmissionCreator({ initialInnovationId = "" }: { initialInnovat
     setState({ status: "loading" });
     try {
       const signature = JSON.stringify(submissionPayload(draft, ""));
-      if (retryIdentity.current?.signature !== signature) retryIdentity.current = { signature, id: submissionId() };
+      if (retryIdentity.current?.signature !== signature) retryIdentity.current = { signature, id: createRecordId() };
       const saved = await createSubmissionsService().create(draft, retryIdentity.current.id, controller.signal);
       if (!controller.signal.aborted) setState({ status: "success", saved });
     } catch (error) {

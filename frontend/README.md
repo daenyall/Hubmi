@@ -124,3 +124,22 @@ Serwis i model są w `src/features/submissions/`, Auth w `src/features/auth/`. K
 `npm test` obejmuje walidację fiszki, brak eskalacji w payloadzie, blokadę bez sesji/schematu, błędy uprawnień i odpowiedzi, filtrowanie właściciela, powiązania tylko z bazą oraz retry bez duplikacji. Testy SDK/HTTP korzystają z danych testowych i nie potwierdzają rzeczywistego Supabase.
 
 Po dostarczeniu konfiguracji wykonaj wspólnie z A: zapis → odświeżenie → wylogowanie i logowanie → odczyt tej samej fiszki; drugim kontem sprawdź cudzy bezpośredni URL i bezpośredni request do bazy. Sprawdź awarię podczas zapisu, brak utraty treści, telefon, klawiaturę i powiększenie 200%. Panel ROPS i wiadomości nie są częścią tego etapu.
+
+## Etap 3: panel ROPS i komunikacja
+
+`/rops` pokazuje listę zgłoszeń z filtrem istniejących statusów; `/rops/zgloszenia/[id]` pełną fiszkę, zmianę statusu, oficjalną odpowiedź i rozmowę. Rozmowa jest także w `/moje-zgloszenia/[id]`, razem z osobnym odczytem oficjalnej odpowiedzi. Wysłanie wymaga potwierdzonego zapisu, odświeża historię i zachowuje tekst po błędzie. Historia ma etykiety autora/ROPS i daty. Przycisk odświeżenia zastępuje realtime.
+
+**Integracja etapu 3 jest domyślnie wyłączona.** Aktualny SQL nie definiuje bezpiecznego kontraktu roli aplikacyjnej i serwerowego nadawcy wiadomości; nadal brakuje też pełnych pól fiszki etapu 2. Wymagania i dokładne operacje: [docs/stage-3-contract.md](docs/stage-3-contract.md). Nie stosujemy domeny email do przyznawania dostępu i nie wysyłamy sender_role z formularza.
+
+Propozycja roli do uzgodnienia: `getUser().app_metadata.hubmi_role=rops_admin`, nadawana wyłącznie przez serwer i sprawdzana także przez RLS. Wiadomość wysyła tylko `id`, `submission_id`, `message`; A musi ustalać `sender_id`, `sender_role` i `sender_name` w bazie. Bez tego zapis jest zablokowany, a nie zastępowany danymi lokalnymi.
+
+Po potwierdzeniu kontraktu, migracji i testów przez A ustaw w `.env.local` publiczną konfigurację Supabase oraz:
+
+```dotenv
+NEXT_PUBLIC_SUBMISSIONS_ENABLED=true
+NEXT_PUBLIC_ROPS_COMMUNICATION_ENABLED=true
+```
+
+Zrestartuj dev albo wykonaj build. Konta: testowy autor A, drugi autor B i pracownik z rolą ROPS nadaną przez serwer. Flagi są kontrolą gotowości integracji, nie zabezpieczeniem bazy. Dla panelu obowiązują te same `npm run lint`, `npm test`, `npm run build`. Nie ma nowych bibliotek ani drugiego systemu logowania.
+
+Scenariusz demonstracji na prawdziwej bazie testowej po wdrożeniu A: autor `/kreator` → zapis → `/moje-zgloszenia/[id]` i wiadomość → pracownik `/rops` → filtr i szczegóły → zmiana statusu, odpowiedź w rozmowie oraz osobna oficjalna odpowiedź → autor odświeża i odczytuje obie odpowiedzi → autor B próbuje bezpośredniego URL i otrzymuje odmowę. Nie używać prawdziwych zgłoszeń do testu.

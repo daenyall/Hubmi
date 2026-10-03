@@ -17,6 +17,7 @@ export function SiteHeader() {
           <Link href="/#wyszukaj" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Znajdź rozwiązania</Link>
           <Link href="/kreator" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Zgłoś pomysł</Link>
           <Link href="/moje-zgloszenia" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Moje zgłoszenia</Link>
+          <Link href="/rops" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Panel ROPS</Link>
           <AuthActions />
           {USE_MOCK_MATCHING && <Badge variant="outline" className="h-auto min-h-7 whitespace-normal border-amber-300 bg-amber-50 text-amber-950">Dane demonstracyjne</Badge>}
         </nav>
