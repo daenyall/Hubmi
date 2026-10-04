@@ -42,7 +42,7 @@ async def list_innovations(
         # Publiczne API zwraca bezwzględnie tylko status 'sprawdzone'
         query = (
             supabase.table("innovations")
-            .select("id, title, description, target_group, category, why_relevant, source_url, status, author_or_institution")
+            .select("id, title, description, target_group, category, why_relevant, source_url, status, author_or_institution, is_demonstrative, source_label")
             .eq("status", "sprawdzone")
         )
         if category:
@@ -58,7 +58,7 @@ async def list_innovations(
                     rid = str(row.get("id", "")).strip()
                     why_rel = to_str(row.get("why_relevant"))
                     is_demo = bool(row.get("is_demonstrative", False)) or ("demonstracyj" in (why_rel or "").lower()) or rid.startswith("inv_")
-                    src_label = to_str(row.get("source_label")) or to_str(row.get("author_or_institution")) or "ROPS Kraków – Baza Innowacji Społecznych (wzorzec demonstracyjny)"
+                    src_label = to_str(row.get("source_label")) or to_str(row.get("author_or_institution")) or ("ROPS Kraków – Baza Innowacji Społecznych (wzorzec demonstracyjny)" if is_demo else "ROPS Kraków")
                     norm_url = _normalize_innovation_source(row.get("source_url"), rid, why_rel)
                     items.append(
                         MatchItem(
@@ -103,7 +103,7 @@ async def get_innovation_by_id(innovation_id: str):
         # W widoku publicznym odczytujemy wyłącznie pozycje sprawdzone
         res = (
             supabase.table("innovations")
-            .select("id, title, description, target_group, category, why_relevant, source_url, status, author_or_institution")
+            .select("id, title, description, target_group, category, why_relevant, source_url, status, author_or_institution, is_demonstrative, source_label")
             .eq("id", innovation_id)
             .eq("status", "sprawdzone")
             .execute()
@@ -118,7 +118,7 @@ async def get_innovation_by_id(innovation_id: str):
         rid = str(row.get("id", "")).strip()
         why_rel = to_str(row.get("why_relevant"))
         is_demo = bool(row.get("is_demonstrative", False)) or ("demonstracyj" in (why_rel or "").lower()) or rid.startswith("inv_")
-        src_label = to_str(row.get("source_label")) or to_str(row.get("author_or_institution")) or "ROPS Kraków – Baza Innowacji Społecznych (wzorzec demonstracyjny)"
+        src_label = to_str(row.get("source_label")) or to_str(row.get("author_or_institution")) or ("ROPS Kraków – Baza Innowacji Społecznych (wzorzec demonstracyjny)" if is_demo else "ROPS Kraków")
         norm_url = _normalize_innovation_source(row.get("source_url"), rid, why_rel)
         return MatchItem(
             id=rid,

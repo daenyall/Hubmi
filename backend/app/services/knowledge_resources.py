@@ -16,6 +16,7 @@ from app.utils.helpers import to_dict_list, to_dict
 
 logger = logging.getLogger(__name__)
 
+
 # ==============================================================================
 # WALIDACJA BEZPIECZEŃSTWA ODNOŚNIKÓW ZASOBÓW
 # ==============================================================================
@@ -40,188 +41,17 @@ def is_safe_resource_url(url: str) -> bool:
         return False
 
 
-# ==============================================================================
-# AUTENTYCZNY ZESTAW STARTOWY ZASOBÓW ROPS KRAKÓW (MVP)
-# ==============================================================================
-
-INITIAL_ROPS_RESOURCES: List[Dict[str, Any]] = [
-    {
-        "id": "mapa-wyzwan-spolecznych",
-        "group_id": "mapa-wyzwan",
-        "group_title": "Mapa Wyzwań Społecznych",
-        "title": "Mapa Wyzwań Społecznych",
-        "description": "Opracowanie Działu Innowacji Społecznych ROPS w Krakowie, przygotowane na potrzeby projektu „Inkubator Włączenia Społecznego 2.0”. Obejmuje osiem obszarów: rodzina i piecza zastępcza, bezdomność, niepełnosprawność, ubóstwo, integracja cudzoziemców, zdrowie, zdrowie psychiczne oraz seniorzy. Dla każdego obszaru podaje definicję i analizę danych zastanych.",
-        "kind": "Dokument PDF",
-        "url": "https://rops.krakow.pl/mpliki/IS/IWS_20/za._nr_2._Mapa_Wyzwa_Spoecznych.pdf",
-        "year": 2024,
-        "coverage_scope": "ogólnopolski",
-        "caveat": None,
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-    {
-        "id": "raporty-z-badan",
-        "group_id": "raporty-diagnozy",
-        "group_title": "Raporty i diagnozy społeczne",
-        "title": "Raporty z badań",
-        "description": "Raporty badawcze ROPS do pobrania, m.in. „Wyzwania i potrzeby sektora opiekuńczego w Małopolsce” (2026) oraz „Usługi społeczne w Małopolsce – deficyty, potrzeby, potencjał rozwojowy” (2025). Opracowania opisują skalę zjawisk i dostęp mieszkańców regionu do pomocy i wsparcia. Publikacje udostępniono na licencji CC BY 4.0.",
-        "kind": "Pliki do pobrania",
-        "url": "https://rops.krakow.pl/badania-analizy-raporty/raporty-z-badan",
-        "year": 2026,
-        "coverage_scope": "woj. małopolskie",
-        "caveat": None,
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-    {
-        "id": "ocena-zasobow",
-        "group_id": "raporty-diagnozy",
-        "group_title": "Raporty i diagnozy społeczne",
-        "title": "Ocena zasobów pomocy społecznej województwa małopolskiego",
-        "description": "Coroczne opracowanie realizowane zgodnie z obowiązkiem ustawowym. Raport przedstawia podstawowe informacje o sytuacji społecznej i demograficznej regionu. Najnowsza edycja za 2025 r. jest udostępniona również w wersji dostępnej dla osób ze szczególnymi potrzebami, wraz z alternatywą tekstową.",
-        "kind": "Raport roczny",
-        "url": "https://rops.krakow.pl/badania-analizy-raporty/ocena-zasobow-pomocy-spolecznej-w-woj-malopolskim/biezaca-ocena",
-        "year": 2025,
-        "coverage_scope": "woj. małopolskie",
-        "caveat": None,
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-    {
-        "id": "ioss",
-        "group_id": "raporty-diagnozy",
-        "group_title": "Raporty i diagnozy społeczne",
-        "title": "Internetowy Obserwator Statystyk Społecznych",
-        "description": "Ogólnodostępny serwis wizualizujący wskaźniki społeczne. Wybraną statystykę można przeglądać na mapie, w tabeli i na wykresie oraz analizować na przestrzeni lat. Obejmuje dane o demografii, zdrowiu, rynku pracy, edukacji, pomocy społecznej, pieczy zastępczej i kulturze.",
-        "kind": "Serwis z danymi",
-        "url": "https://rops.krakow.pl/badania-analizy-raporty/internetowy-obserwator-statystyk-spolecznych",
-        "year": 2026,
-        "coverage_scope": "woj. małopolskie",
-        "caveat": None,
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-    {
-        "id": "social-innovation-canvas",
-        "group_id": "materialy-edukacyjne",
-        "group_title": "Materiały edukacyjne o innowacjach społecznych",
-        "title": "Social Innovation Canvas",
-        "description": "Plansza warsztatowa do rozpisania pomysłu na innowację społeczną. Prowadzi przez problem i jego intensywność, aktorów zmiany, przystępność i wartość rozwiązania oraz strukturę kosztów stałych. Przy każdej sekcji podaje pytania pomocnicze.",
-        "kind": "Plansza PDF",
-        "url": "https://rops.krakow.pl/mpliki/IS/Moj_folder/INNO_AGH_-_SOCIAL_CANVAS.pdf",
-        "year": 2024,
-        "coverage_scope": "ogólnopolski",
-        "caveat": None,
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-    {
-        "id": "publikacje-ze-swiata-innowacji",
-        "group_id": "materialy-edukacyjne",
-        "group_title": "Materiały edukacyjne o innowacjach społecznych",
-        "title": "Publikacje ze świata innowacji",
-        "description": "Publikacje ROPS podsumowujące kolejne inkubatory, m.in. „Połącz kropki, czyli o sile innowacji społecznych w obszarze włączenia społecznego”, „Innowacje społeczne dla dostępności” oraz „Przewodnik po innowacjach społecznych” o tym, czy i jak administracja publiczna może inkubować innowacje.",
-        "kind": "Pliki do pobrania",
-        "url": "https://rops.krakow.pl/innowacje-spoleczne/publikacje-ze-swiata-innowacji",
-        "year": 2025,
-        "coverage_scope": "regionalny i krajowy",
-        "caveat": None,
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-    {
-        "id": "biblioteka-innowacji",
-        "group_id": "materialy-edukacyjne",
-        "group_title": "Materiały edukacyjne o innowacjach społecznych",
-        "title": "Biblioteka Innowacji Społecznych",
-        "description": "Innowacje inkubowane przez ROPS, pogrupowane według odbiorców: seniorzy, dzieci, młodzież i rodzina, osoby o ograniczonej mobilności, osoby z niepełnosprawnością sensoryczną i intelektualną, zdrowie i medycyna, rynek pracy, cudzoziemcy oraz osoby w kryzysie bezdomności.",
-        "kind": "Katalog na stronie ROPS",
-        "url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
-        "year": 2026,
-        "coverage_scope": "woj. małopolskie",
-        "caveat": "ROPS informuje na tej stronie, że jest ona w przebudowie i część odnośników może być nieaktywna.",
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-    {
-        "id": "innowacje-w-modelach",
-        "group_id": "materialy-edukacyjne",
-        "group_title": "Materiały edukacyjne o innowacjach społecznych",
-        "title": "Innowacje w małopolskich modelach",
-        "description": "Przegląd innowacji społecznych, które weszły do Małopolskich Modeli Usług Społecznych, wraz z opisem gotowych do wykorzystania rozwiązań, takich jak „Organizator kompleksowej opieki w miejscu zamieszkania”.",
-        "kind": "Strona tematyczna",
-        "url": "https://rops.krakow.pl/innowacje-spoleczne/innowacje-w-malopolskich-modelach",
-        "year": 2025,
-        "coverage_scope": "woj. małopolskie",
-        "caveat": None,
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-    {
-        "id": "video-inkubator-iws",
-        "group_id": "filmy-i-dobre-praktyki",
-        "group_title": "Filmy i dobre praktyki",
-        "title": "Inkubator Włączenia Społecznego – Filmy i dobre praktyki",
-        "description": "Zweryfikowana baza materiałów filmowych i dobrych praktyk wdrożeniowych innowacji społecznych w gminach Małopolski. Prezentuje doświadczenia innowatorów oraz metodykę skalowania rozwiązań.",
-        "kind": "Materiał filmowy (wideo)",
-        "url": "https://rops.krakow.pl/innowacje-spoleczne/filmy-i-dobre-praktyki",
-        "year": 2025,
-        "coverage_scope": "woj. małopolskie",
-        "caveat": "Materiały wideo udostępnione w serwisie ROPS Kraków.",
-        "status": "opublikowany",
-        "verified_by": "rops_admin",
-        "verified_at": "2026-10-03T12:00:00+00:00",
-        "published_by": "rops_admin",
-        "published_at": "2026-10-03T12:00:00+00:00",
-        "created_at": "2026-10-03T12:00:00+00:00",
-        "updated_at": "2026-10-03T12:00:00+00:00",
-    },
-]
-
-# Magazyn pamięciowy na potrzeby testów i fallbacku
-_memory_resources_store: Dict[str, Dict[str, Any]] = {
-    item["id"]: dict(item) for item in INITIAL_ROPS_RESOURCES
-}
+def _get_active_supabase():
+    """
+    Pobiera klienta Supabase lub zgłasza jawny błąd 503 w przypadku braku konfiguracji.
+    """
+    sb = get_supabase_client()
+    if not sb:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Baza danych Supabase jest niedostępna lub nieskonfigurowana.",
+        )
+    return sb
 
 
 def _map_to_response(r: Dict[str, Any]) -> KnowledgeResourceResponse:
@@ -247,7 +77,7 @@ def _map_to_response(r: Dict[str, Any]) -> KnowledgeResourceResponse:
 
 
 # ==============================================================================
-# PUBLICZNE API ZASOBNIKA WIEDZY
+# PUBLICZNE API ZASOBNIKA WIEDZY (WYŁĄCZNIE SUPABASE, BRAK PAMIĘCIOWEGO FALLBACKU)
 # ==============================================================================
 
 def list_public_resources(
@@ -259,93 +89,74 @@ def list_public_resources(
 ) -> List[KnowledgeResourceResponse]:
     """
     Pobiera publiczne zasoby wiedzy (wyłącznie status 'opublikowany').
-    Łączy bazę danych Supabase z magazynem fallbackowym z deduplikacją po ID.
+    Korzysta wyłącznie z trwałej bazy danych Supabase.
+    Filtrowanie następuje PRZED paginacją.
+    Pusta tabela lub brak wyników zwraca pustą listę.
     """
-    seen_ids = set()
-    results: List[KnowledgeResourceResponse] = []
+    sb = _get_active_supabase()
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            query = supabase.table("knowledge_resources").select("*").eq("status", "opublikowany")
-            if group_id:
-                query = query.eq("group_id", group_id)
-            if kind:
-                query = query.eq("kind", kind)
+    try:
+        query = sb.table("knowledge_resources").select("*").eq("status", "opublikowany")
+        if group_id:
+            query = query.eq("group_id", group_id)
+        if kind:
+            query = query.eq("kind", kind)
+        if search and search.strip():
+            # Filtrowanie po tytule lub opisie
+            s_clean = search.strip()
+            query = query.ilike("title", f"%{s_clean}%")
 
-            res = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
-            rows = to_dict_list(res.data)
-            for r in rows:
-                if r.get("id"):
-                    seen_ids.add(r["id"])
-                    results.append(_map_to_response(r))
-        except Exception as e:
-            logger.warning("Błąd odczytu knowledge_resources z Supabase: %s", e)
+        res = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+    except Exception as e:
+        logger.error("Błąd trwałego odczytu knowledge_resources z Supabase: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych zasobnika wiedzy.",
+        )
 
-    # Fallback pamięciowy
-    mem_rows = [
-        r for r in _memory_resources_store.values()
-        if r.get("status") == "opublikowany"
-    ]
-    if group_id:
-        mem_rows = [r for r in mem_rows if r.get("group_id") == group_id]
-    if kind:
-        mem_rows = [r for r in mem_rows if r.get("kind") == kind]
-
-    for r in mem_rows:
-        rid = str(r.get("id") or "")
-        if rid and rid not in seen_ids:
-            seen_ids.add(rid)
-            results.append(_map_to_response(r))
-
-    if search and search.strip():
-        s_lower = search.strip().lower()
-        results = [
-            r for r in results
-            if s_lower in r.title.lower() or s_lower in r.description.lower()
-        ]
-
-    return results[:limit]
+    rows = to_dict_list(res.data) if res and res.data else []
+    return [_map_to_response(r) for r in rows if r.get("id")]
 
 
 def get_public_resource(resource_id: str) -> KnowledgeResourceResponse:
     """
     Pobiera pojedynczy opublikowany zasób wiedzy.
-    Zwraca 404, jeśli nie istnieje lub nie został opublikowany.
+    Zwraca 404, jeśli rekord nie istnieje lub nie został opublikowany.
     """
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("knowledge_resources")
-                .select("*")
-                .eq("id", resource_id)
-                .eq("status", "opublikowany")
-                .limit(1)
-                .execute()
-            )
-            data = to_dict(res.data)
-            if data:
-                return _map_to_response(data)
-        except Exception as e:
-            logger.warning("Błąd pobierania zasobu z Supabase: %s", e)
+    sb = _get_active_supabase()
 
-    if resource_id in _memory_resources_store:
-        r = _memory_resources_store[resource_id]
-        if r.get("status") == "opublikowany":
-            return _map_to_response(r)
+    try:
+        res = (
+            sb.table("knowledge_resources")
+            .select("*")
+            .eq("id", resource_id)
+            .eq("status", "opublikowany")
+            .limit(1)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("Błąd trwałego odczytu zasobu %s z Supabase: %s", resource_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych zasobnika wiedzy.",
+        )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Zasób wiedzy o ID '{resource_id}' nie został odnaleziony lub nie jest opublikowany.",
-    )
+    data = to_dict(res.data) if res and res.data else None
+    if not data or not data.get("id"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Zasób wiedzy o ID '{resource_id}' nie został odnaleziony lub nie jest opublikowany.",
+        )
+
+    return _map_to_response(data)
 
 
 def get_grouped_resources() -> List[KnowledgeResourceGroupResponse]:
     """
     Zwraca zasoby pogrupowane w kategorie spójne ze strukturą RESOURCE_GROUPS frontendu.
+    Dane pochodzą wyłącznie z opublikowanych rekordów w Supabase.
     """
-    all_published = list_public_resources(limit=100)
+    all_published = list_public_resources(limit=200)
 
     groups_def = [
         {
@@ -386,7 +197,7 @@ def get_grouped_resources() -> List[KnowledgeResourceGroupResponse]:
 
 
 # ==============================================================================
-# PANEL ADMINISTRATORA ROPS KRAKÓW (CRUD, WERYFIKACJA I PUBLIKACJA)
+# PANEL ADMINISTRATORA ROPS KRAKÓW (CRUD, WERYFIKACJA, PUBLIKACJA, USUWANIE)
 # ==============================================================================
 
 def admin_list_resources(
@@ -398,78 +209,61 @@ def admin_list_resources(
 ) -> List[KnowledgeResourceResponse]:
     """
     Pobiera wszystkie zasoby wiedzy (w dowolnym statusie) dla administratora ROPS.
+    Filtrowanie następuje PRZED paginacją bezpośrednio w Supabase.
     """
-    seen_ids = set()
-    results: List[KnowledgeResourceResponse] = []
+    sb = _get_active_supabase()
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            query = supabase.table("knowledge_resources").select("*")
-            if status_filter:
-                query = query.eq("status", status_filter)
-            if group_id:
-                query = query.eq("group_id", group_id)
+    try:
+        query = sb.table("knowledge_resources").select("*")
+        if status_filter:
+            query = query.eq("status", status_filter)
+        if group_id:
+            query = query.eq("group_id", group_id)
+        if search and search.strip():
+            s_clean = search.strip()
+            query = query.ilike("title", f"%{s_clean}%")
 
-            res = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
-            rows = to_dict_list(res.data)
-            for r in rows:
-                if r.get("id"):
-                    seen_ids.add(r["id"])
-                    results.append(_map_to_response(r))
-        except Exception as e:
-            logger.warning("Błąd odczytu admin knowledge_resources z Supabase: %s", e)
+        res = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+    except Exception as e:
+        logger.error("Błąd odczytu admin knowledge_resources z Supabase: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych zasobnika wiedzy.",
+        )
 
-    mem_rows = list(_memory_resources_store.values())
-    if status_filter:
-        mem_rows = [r for r in mem_rows if r.get("status") == status_filter]
-    if group_id:
-        mem_rows = [r for r in mem_rows if r.get("group_id") == group_id]
-    mem_rows.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
-
-    for r in mem_rows:
-        rid = str(r.get("id") or "")
-        if rid and rid not in seen_ids:
-            seen_ids.add(rid)
-            results.append(_map_to_response(r))
-
-    if search and search.strip():
-        s_lower = search.strip().lower()
-        results = [
-            r for r in results
-            if s_lower in r.title.lower() or s_lower in r.description.lower()
-        ]
-
-    return results[:limit]
+    rows = to_dict_list(res.data) if res and res.data else []
+    return [_map_to_response(r) for r in rows if r.get("id")]
 
 
 def admin_get_resource(resource_id: str) -> KnowledgeResourceResponse:
     """
     Pobiera szczegóły zasobu w dowolnym statusie dla administratora ROPS.
     """
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("knowledge_resources")
-                .select("*")
-                .eq("id", resource_id)
-                .limit(1)
-                .execute()
-            )
-            data = to_dict(res.data)
-            if data:
-                return _map_to_response(data)
-        except Exception as e:
-            logger.warning("Błąd odczytu admin zasobu z Supabase: %s", e)
+    sb = _get_active_supabase()
 
-    if resource_id in _memory_resources_store:
-        return _map_to_response(_memory_resources_store[resource_id])
+    try:
+        res = (
+            sb.table("knowledge_resources")
+            .select("*")
+            .eq("id", resource_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("Błąd odczytu admin zasobu %s z Supabase: %s", resource_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych zasobnika wiedzy.",
+        )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Zasób wiedzy o ID '{resource_id}' nie został odnaleziony.",
-    )
+    data = to_dict(res.data) if res and res.data else None
+    if not data or not data.get("id"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Zasób wiedzy o ID '{resource_id}' nie został odnaleziony.",
+        )
+
+    return _map_to_response(data)
 
 
 def admin_create_resource(
@@ -478,6 +272,7 @@ def admin_create_resource(
     """
     Dodaje nowy zasób wiedzy do bazy ROPS.
     Wymaga bezpiecznego adresu HTTPS (nie buduje hostingu filmów, akceptuje zweryfikowane linki).
+    Nie pozwala na obejście weryfikacji przez bezpośrednie ustawienie statusu 'opublikowany'.
     """
     clean_url = payload.url.strip()
     if not is_safe_resource_url(clean_url):
@@ -485,6 +280,16 @@ def admin_create_resource(
             status_code=422,
             detail="Nieprawidłowy adres URL. Wymagany jest bezpieczny protokół HTTPS bez danych uwierzytelniających.",
         )
+
+    # Blokada bezpośredniego tworzenia jako 'opublikowany'
+    req_status = (payload.status or "roboczy").strip().lower()
+    if req_status == "opublikowany":
+        raise HTTPException(
+            status_code=422,
+            detail="Nowy zasób nie może być dodany od razu jako 'opublikowany'. Wymaga formalnego przejścia weryfikacji przez ROPS Kraków.",
+        )
+    if req_status not in ("roboczy", "do_weryfikacji"):
+        req_status = "roboczy"
 
     res_id = payload.id.strip() if payload.id and payload.id.strip() else f"res_{uuid.uuid4().hex[:8]}"
     now_str = datetime.now(timezone.utc).isoformat()
@@ -500,28 +305,35 @@ def admin_create_resource(
         "year": payload.year,
         "coverage_scope": payload.coverage_scope.strip() if payload.coverage_scope else None,
         "caveat": payload.caveat.strip() if payload.caveat else None,
-        "status": payload.status.strip() if payload.status else "roboczy",
-        "verified_by": admin_id if payload.status in ("zweryfikowany", "opublikowany") else None,
-        "verified_at": now_str if payload.status in ("zweryfikowany", "opublikowany") else None,
-        "published_by": admin_id if payload.status == "opublikowany" else None,
-        "published_at": now_str if payload.status == "opublikowany" else None,
+        "status": req_status,
+        "verified_by": None,
+        "verified_at": None,
+        "published_by": None,
+        "published_at": None,
         "created_at": now_str,
         "updated_at": now_str,
     }
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = supabase.table("knowledge_resources").insert(row_data).execute()
-            inserted = to_dict(res.data)
-            if inserted:
-                _memory_resources_store[res_id] = dict(inserted)
-                return _map_to_response(inserted)
-        except Exception as e:
-            logger.warning("Błąd zapisu knowledge_resources do Supabase: %s", e)
+    sb = _get_active_supabase()
 
-    _memory_resources_store[res_id] = dict(row_data)
-    return _map_to_response(row_data)
+    try:
+        res = sb.table("knowledge_resources").insert(row_data).execute()
+    except Exception as e:
+        logger.error("Błąd zapisu knowledge_resources do Supabase: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd podczas trwałego zapisu zasobu wiedzy w bazie danych.",
+        )
+
+    if not res or not res.data:
+        logger.error("Supabase insert nie zwrócił potwierdzenia zapisu (brak res.data)")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Baza danych nie potwierdziła trwałego zapisu zasobu wiedzy.",
+        )
+
+    inserted = to_dict(res.data[0]) if isinstance(res.data, list) else to_dict(res.data)
+    return _map_to_response(inserted)
 
 
 def admin_update_resource(
@@ -529,20 +341,36 @@ def admin_update_resource(
 ) -> KnowledgeResourceResponse:
     """
     Edytuje istniejący zasób wiedzy.
+    POST i PUT nie mogą omijać weryfikacji przez bezpośrednie ustawienie statusu 'opublikowany'.
+    Zmiana źródła albo treści po weryfikacji unieważnia wcześniejszą weryfikację i wymaga ponownego zatwierdzenia.
     """
     existing = admin_get_resource(resource_id)
     update_data: Dict[str, Any] = {}
+    content_changed = False
 
-    if payload.title is not None:
+    if payload.status is not None:
+        new_status = payload.status.strip().lower()
+        if new_status == "opublikowany":
+            raise HTTPException(
+                status_code=422,
+                detail="Nie można bezpośrednio ustawić statusu 'opublikowany' przez edycję. Publikacja wymaga formalnej weryfikacji i wywołania dedykowanego endpointu /publish.",
+            )
+        update_data["status"] = new_status
+
+    if payload.title is not None and payload.title.strip() != existing.title:
         update_data["title"] = payload.title.strip()
-    if payload.description is not None:
+        content_changed = True
+    if payload.description is not None and payload.description.strip() != existing.description:
         update_data["description"] = payload.description.strip()
-    if payload.group_id is not None:
+        content_changed = True
+    if payload.group_id is not None and payload.group_id.strip() != existing.group_id:
         update_data["group_id"] = payload.group_id.strip()
-    if payload.group_title is not None:
+        content_changed = True
+    if payload.group_title is not None and payload.group_title.strip() != existing.group_title:
         update_data["group_title"] = payload.group_title.strip()
-    if payload.kind is not None:
+    if payload.kind is not None and payload.kind.strip() != existing.kind:
         update_data["kind"] = payload.kind.strip()
+        content_changed = True
     if payload.url is not None:
         clean_url = payload.url.strip()
         if not is_safe_resource_url(clean_url):
@@ -550,135 +378,248 @@ def admin_update_resource(
                 status_code=422,
                 detail="Nieprawidłowy adres URL. Wymagany jest bezpieczny protokół HTTPS bez danych uwierzytelniających.",
             )
-        update_data["url"] = clean_url
-    if payload.year is not None:
+        if clean_url != existing.url:
+            update_data["url"] = clean_url
+            content_changed = True
+    if payload.year is not None and payload.year != existing.year:
         update_data["year"] = payload.year
-    if payload.coverage_scope is not None:
+        content_changed = True
+    if payload.coverage_scope is not None and payload.coverage_scope.strip() != (existing.coverage_scope or ""):
         update_data["coverage_scope"] = payload.coverage_scope.strip()
+        content_changed = True
     if payload.caveat is not None:
         update_data["caveat"] = payload.caveat.strip()
-    if payload.status is not None:
-        update_data["status"] = payload.status.strip()
+
+    # Zmiana źródła lub treści po wcześniejszej weryfikacji unieważnia weryfikację
+    if content_changed and existing.status in ("zweryfikowany", "opublikowany"):
+        logger.info("Zmiana treści/źródła zasobu %s po weryfikacji -> cofnięcie do 'roboczy'", resource_id)
+        update_data["status"] = "roboczy"
+        update_data["verified_by"] = None
+        update_data["verified_at"] = None
+        update_data["published_by"] = None
+        update_data["published_at"] = None
 
     now_str = datetime.now(timezone.utc).isoformat()
     update_data["updated_at"] = now_str
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("knowledge_resources")
-                .update(update_data)
-                .eq("id", resource_id)
-                .execute()
-            )
-            updated = to_dict(res.data)
-            if updated:
-                _memory_resources_store[resource_id] = dict(updated)
-                return _map_to_response(updated)
-        except Exception as e:
-            logger.warning("Błąd aktualizacji zasobu w Supabase: %s", e)
+    sb = _get_active_supabase()
 
-    if resource_id in _memory_resources_store:
-        _memory_resources_store[resource_id].update(update_data)
-        return _map_to_response(_memory_resources_store[resource_id])
+    try:
+        res = (
+            sb.table("knowledge_resources")
+            .update(update_data)
+            .eq("id", resource_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("Błąd aktualizacji zasobu %s w Supabase: %s", resource_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd podczas aktualizacji zasobu wiedzy w bazie danych.",
+        )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Zasób wiedzy o ID '{resource_id}' nie został odnaleziony.",
-    )
+    if not res or not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Baza danych nie potwierdziła trwałej aktualizacji zasobu wiedzy.",
+        )
+
+    updated = to_dict(res.data[0]) if isinstance(res.data, list) else to_dict(res.data)
+    return _map_to_response(updated)
 
 
 def admin_verify_resource(
     resource_id: str, admin_id: str, notes: Optional[str] = None
 ) -> KnowledgeResourceResponse:
     """
-    Weryfikuje zasób wiedzy przez ROPS Kraków (zmienia status na 'zweryfikowany').
+    Weryfikuje autentyczność i dostępność źródła materiału przez ROPS (status: 'zweryfikowany').
+    Zapisuje identyfikator urzędnika weryfikującego oraz sygnaturę czasową.
     """
-    res = admin_get_resource(resource_id)
-    if not is_safe_resource_url(res.url):
+    existing = admin_get_resource(resource_id)
+    if not is_safe_resource_url(existing.url):
         raise HTTPException(
             status_code=422,
             detail="Nie można zweryfikować zasobu: niepoprawny lub niebezpieczny adres URL.",
         )
 
     now_str = datetime.now(timezone.utc).isoformat()
-    update_data: Dict[str, Any] = {
+    update_data = {
         "status": "zweryfikowany",
         "verified_by": admin_id,
         "verified_at": now_str,
+        "caveat": notes if notes else existing.caveat,
         "updated_at": now_str,
     }
-    if notes:
-        update_data["caveat"] = (
-            f"{res.caveat + ' | ' if res.caveat else ''}Notatka weryfikacyjna: {notes.strip()}"
+
+    sb = _get_active_supabase()
+
+    try:
+        res = (
+            sb.table("knowledge_resources")
+            .update(update_data)
+            .eq("id", resource_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("Błąd weryfikacji zasobu %s w Supabase: %s", resource_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd podczas weryfikacji zasobu wiedzy w bazie danych.",
         )
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            r = (
-                supabase.table("knowledge_resources")
-                .update(update_data)
-                .eq("id", resource_id)
-                .execute()
-            )
-            updated = to_dict(r.data)
-            if updated:
-                _memory_resources_store[resource_id] = dict(updated)
-                return _map_to_response(updated)
-        except Exception as e:
-            logger.warning("Błąd weryfikacji w Supabase: %s", e)
+    if not res or not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Baza danych nie potwierdziła trwałej weryfikacji zasobu wiedzy.",
+        )
 
-    if resource_id in _memory_resources_store:
-        _memory_resources_store[resource_id].update(update_data)
-        return _map_to_response(_memory_resources_store[resource_id])
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Zasób wiedzy o ID '{resource_id}' nie został odnaleziony.",
-    )
+    updated = to_dict(res.data[0]) if isinstance(res.data, list) else to_dict(res.data)
+    return _map_to_response(updated)
 
 
 def admin_publish_resource(
     resource_id: str, admin_id: str
 ) -> KnowledgeResourceResponse:
     """
-    Publikuje zasób wiedzy w oficjalnym Zasobniku ROPS Kraków (status 'opublikowany').
+    Publikuje zasób wiedzy w publicznym Zasobniku ROPS Kraków (status: 'opublikowany').
+    Wymaga wcześniejszej formalnej weryfikacji (status 'zweryfikowany').
+    Publikacja NIE MOŻE sama dopisywać verified_by ani verified_at!
     """
-    res = admin_get_resource(resource_id)
+    existing = admin_get_resource(resource_id)
+
+    # Ścisły warunek: publikacja wymaga uprzedniej formalnej weryfikacji
+    if existing.status != "zweryfikowany":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Zasób nie może zostać opublikowany: wymagana jest wcześniejsza formalna weryfikacja przez ROPS Kraków (zasób musi posiadać status 'zweryfikowany').",
+        )
+    if not existing.verified_by or not existing.verified_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Brak potwierdzenia formalnej weryfikacji (brak verified_by lub verified_at). Publikacja jest zablokowana.",
+        )
+
     now_str = datetime.now(timezone.utc).isoformat()
-    update_data: Dict[str, Any] = {
+    update_data = {
         "status": "opublikowany",
         "published_by": admin_id,
         "published_at": now_str,
         "updated_at": now_str,
     }
-    if not res.verified_at:
-        update_data["verified_by"] = admin_id
-        update_data["verified_at"] = now_str
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            r = (
-                supabase.table("knowledge_resources")
-                .update(update_data)
-                .eq("id", resource_id)
-                .execute()
+    sb = _get_active_supabase()
+
+    try:
+        res = (
+            sb.table("knowledge_resources")
+            .update(update_data)
+            .eq("id", resource_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("Błąd publikacji zasobu %s w Supabase: %s", resource_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd podczas publikacji zasobu wiedzy w bazie danych.",
+        )
+
+    if not res or not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Baza danych nie potwierdziła publikacji zasobu wiedzy.",
+        )
+
+    updated = to_dict(res.data[0]) if isinstance(res.data, list) else to_dict(res.data)
+    return _map_to_response(updated)
+
+
+def admin_unpublish_resource(
+    resource_id: str, admin_id: str
+) -> KnowledgeResourceResponse:
+    """
+    Wycofuje publikację zasobu wiedzy (cofa status do 'zweryfikowany').
+    Natychmiast ukrywa zasób przed widokiem publicznym.
+    """
+    existing = admin_get_resource(resource_id)
+    if existing.status != "opublikowany":
+        return existing
+
+    now_str = datetime.now(timezone.utc).isoformat()
+    update_data = {
+        "status": "zweryfikowany",
+        "published_by": None,
+        "published_at": None,
+        "updated_at": now_str,
+    }
+
+    sb = _get_active_supabase()
+
+    try:
+        res = (
+            sb.table("knowledge_resources")
+            .update(update_data)
+            .eq("id", resource_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("Błąd wycofania publikacji zasobu %s: %s", resource_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd podczas wycofywania publikacji zasobu wiedzy w bazie danych.",
+        )
+
+    if not res or not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Baza danych nie potwierdziła wycofania publikacji zasobu.",
+        )
+
+    updated = to_dict(res.data[0]) if isinstance(res.data, list) else to_dict(res.data)
+    return _map_to_response(updated)
+
+
+def admin_delete_resource(
+    resource_id: str, admin_id: str
+) -> Dict[str, Any]:
+    """
+    Trwale usuwa zasób wiedzy z bazy danych ROPS Kraków.
+    Potwierdza rzeczywiste usunięcie. Dostęp wyłącznie dla Administratora ROPS.
+    """
+    # 1. Sprawdzenie czy rekord w ogóle istnieje (zwróci 404 jeśli nie ma)
+    admin_get_resource(resource_id)
+
+    sb = _get_active_supabase()
+
+    try:
+        sb.table("knowledge_resources").delete().eq("id", resource_id).execute()
+    except Exception as e:
+        logger.error("Błąd usuwania zasobu %s z Supabase: %s", resource_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd podczas usuwania zasobu wiedzy z bazy danych.",
+        )
+
+    # 2. Potwierdzenie rzeczywistego braku rekordu
+    try:
+        check = (
+            sb.table("knowledge_resources")
+            .select("id")
+            .eq("id", resource_id)
+            .execute()
+        )
+        if check and check.data and len(check.data) > 0:
+            logger.error("Rekord %s nadal istnieje w Supabase po operacji DELETE", resource_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Operacja usunięcia nie powiodła się. Rekord nadal istnieje w bazie danych.",
             )
-            updated = to_dict(r.data)
-            if updated:
-                _memory_resources_store[resource_id] = dict(updated)
-                return _map_to_response(updated)
-        except Exception as e:
-            logger.warning("Błąd publikacji w Supabase: %s", e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("Błąd weryfikacji usunięcia zasobu %s: %s", resource_id, e)
 
-    if resource_id in _memory_resources_store:
-        _memory_resources_store[resource_id].update(update_data)
-        return _map_to_response(_memory_resources_store[resource_id])
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Zasób wiedzy o ID '{resource_id}' nie został odnaleziony.",
-    )
+    return {
+        "success": True,
+        "message": f"Zasób o ID '{resource_id}' został trwale usunięty z Zasobnika Wiedzy ROPS Kraków.",
+        "id": resource_id,
+    }
