@@ -32,13 +32,22 @@ def get_current_user(
     is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
 
     # 1. Dopuszczenie nagłówka testowego X-Admin-Role WYŁĄCZNIE podczas testów jednostkowych (pytest)
-    if is_test_runner and x_admin_role in ("rops_admin", "admin", "mentor"):
-        return UserSession(
-            user_id="admin-rops-001",
-            email="kontakt@rops.krakow.pl",
-            role="rops_admin",
-            is_admin=True,
-        )
+    if is_test_runner:
+        if x_admin_role in ("rops_admin", "admin", "mentor"):
+            return UserSession(
+                user_id="admin-rops-001",
+                email="kontakt@rops.krakow.pl",
+                role="rops_admin",
+                is_admin=True,
+            )
+        elif x_admin_role in ("applicant", "author", "user"):
+            return UserSession(
+                user_id="test-applicant-001",
+                email="autor@malopolska.pl",
+                role="applicant",
+                is_admin=False,
+            )
+
 
     # 2. Tajny klucz serwisowy serwera ROPS (np. dla zadań cron / service_role)
     if x_rops_key and settings.SUPABASE_KEY and x_rops_key == settings.SUPABASE_KEY:
