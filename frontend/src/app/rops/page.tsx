@@ -10,6 +10,7 @@ export default function RopsPage() {
         <li><Link href="/rops/innowacje" className="inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4">Zarządzaj bazą wiedzy — innowacje</Link></li>
         <li><Link href="/rops/potrzeby" className="inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4">Potrzeby regionu</Link></li>
         <li><Link href="/rops/tester" className="inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4">Pilotaże i testy innowacji</Link></li>
+        <li><Link href="/rops/wnioski" className="inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4">Wnioski w naborach</Link></li>
       </ul>
     </nav>
     <RopsList />
