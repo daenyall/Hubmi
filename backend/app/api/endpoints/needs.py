@@ -77,7 +77,13 @@ async def get_my_needs(
     Pobiera listę potrzeb zgłoszonych przez aktualnie zalogowanego użytkownika (autora).
     Wymaga uwierzytelnienia. Zwykły autor nie widzi zgłoszeń innych podmiotów.
     """
+    if not user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Wymagane jest zalogowanie, aby uzyskać dostęp do swoich zgłoszeń.",
+        )
     return get_user_community_needs(user.user_id)
+
 
 
 # ==============================================================================

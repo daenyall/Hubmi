@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Any, Tuple
 
+from postgrest.types import CountMethod
+
 from app.db.supabase import get_supabase_client
 from app.models.schemas import (
     CommunityNeedCreate,
@@ -19,6 +21,32 @@ from app.utils.helpers import to_dict_list, to_dict
 from app.utils.sanitize import sanitize_text, sanitize_optional, is_valid_uuid
 
 logger = logging.getLogger(__name__)
+
+
+def _row_to_response(r: Dict[str, Any]) -> CommunityNeedResponse:
+    """Konwertuje słownik z bazy/magazynu na silnie typowany CommunityNeedResponse."""
+    return CommunityNeedResponse(
+        id=str(r.get("id", "")),
+        user_id=r.get("user_id"),
+        created_at=str(r.get("created_at", "")),
+        updated_at=str(r.get("updated_at")) if r.get("updated_at") is not None else None,
+        institution_name=str(r.get("institution_name", "")),
+        institution_type=str(r.get("institution_type", "JST")),
+        powiat=str(r.get("powiat", "")),
+        gmina=str(r.get("gmina")) if r.get("gmina") is not None else None,
+        contact_email=str(r.get("contact_email")) if r.get("contact_email") is not None else None,
+        contact_phone=str(r.get("contact_phone")) if r.get("contact_phone") is not None else None,
+        category=str(r.get("category", "")),
+        target_group=str(r.get("target_group", "Mieszkańcy")),
+        problem_summary=str(r.get("problem_summary", "")),
+        detailed_description=str(r.get("detailed_description", "")),
+        estimated_affected_count=int(r.get("estimated_affected_count") or 0),
+        urgency_level=str(r.get("urgency_level", "sredni")),
+        status=str(r.get("status", "nowe")),
+        rops_internal_notes=str(r.get("rops_internal_notes")) if r.get("rops_internal_notes") is not None else None,
+        reviewed_at=str(r.get("reviewed_at")) if r.get("reviewed_at") is not None else None,
+    )
+
 
 # Fallback in-memory store in case table is not yet migrated in Supabase Dashboard
 _fallback_needs_store: List[Dict[str, Any]] = [
@@ -145,13 +173,13 @@ def create_community_need(
         try:
             res = sb.table("community_needs").insert(record).execute()
             data = to_dict(res.data[0]) if res.data else record
-            return CommunityNeedResponse(**data)
+            return _row_to_response(data)
         except Exception as e:
             logger.warning("Błąd zapisu community_needs do Supabase: %s. Zapisuję do magazynu awaryjnego.", e)
 
     # Fallback storage
     _fallback_needs_store.insert(0, record)
-    return CommunityNeedResponse(**record)
+    return _row_to_response(record)
 
 
 def list_community_needs(
@@ -167,7 +195,7 @@ def list_community_needs(
     sb = get_supabase_client()
     if sb and _try_supabase_table():
         try:
-            query = sb.table("community_needs").select("*", count="exact")
+            query = sb.table("community_needs").select("*", count=CountMethod.exact)
             if powiat:
                 query = query.eq("powiat", powiat.lower().strip())
             if category:
@@ -191,7 +219,7 @@ def list_community_needs(
                     or s in str(r.get("institution_name", "")).lower()
                 ]
 
-            return [CommunityNeedResponse(**r) for r in rows], total
+            return [_row_to_response(r) for r in rows], total
         except Exception as e:
             logger.warning("Błąd odczytu z Supabase community_needs: %s. Używam magazynu awaryjnego.", e)
 
@@ -216,23 +244,26 @@ def list_community_needs(
 
     total = len(filtered)
     paged = filtered[offset : offset + limit]
-    return [CommunityNeedResponse(**r) for r in paged], total
+    return [_row_to_response(r) for r in paged], total
 
 
-def get_user_community_needs(user_id: str) -> List[CommunityNeedResponse]:
+def get_user_community_needs(user_id: Optional[str]) -> List[CommunityNeedResponse]:
     """Pobiera zgłoszenia danego autora."""
+    if not user_id:
+        return []
+
     sb = get_supabase_client()
     if sb and _try_supabase_table():
         try:
             res = sb.table("community_needs").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
             rows = to_dict_list(res.data)
-            return [CommunityNeedResponse(**r) for r in rows]
+            return [_row_to_response(r) for r in rows]
         except Exception as e:
             logger.warning("Błąd odczytu własnych potrzeb z Supabase: %s", e)
 
     # Fallback
     user_rows = [r for r in _fallback_needs_store if r.get("user_id") == user_id]
-    return [CommunityNeedResponse(**r) for r in user_rows]
+    return [_row_to_response(r) for r in user_rows]
 
 
 def update_need_status(
@@ -257,7 +288,7 @@ def update_need_status(
         try:
             res = sb.table("community_needs").update(fields).eq("id", need_id).execute()
             if res.data:
-                return CommunityNeedResponse(**to_dict(res.data[0]))
+                return _row_to_response(to_dict(res.data[0]))
         except Exception as e:
             logger.warning("Błąd aktualizacji w Supabase: %s", e)
 
@@ -265,7 +296,7 @@ def update_need_status(
     for r in _fallback_needs_store:
         if r.get("id") == need_id:
             r.update(fields)
-            return CommunityNeedResponse(**r)
+            return _row_to_response(r)
     return None
 
 
