@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     GEMINI_GENERATION_MODEL: str = "gemini-3.1-flash-lite"
     GEMINI_GENERATION_FALLBACK_MODELS: str = "gemini-3.6-flash,gemini-3.7-flash"
 
+    @field_validator("APP_NAME", mode="before")
+    @classmethod
+    def normalize_legacy_app_name(cls, value: str) -> str:
+        legacy_names = {"hubmi": "Splot", "hubmi backend": "Splot Backend"}
+        return legacy_names.get(value.strip().casefold(), value)
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
