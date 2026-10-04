@@ -89,7 +89,8 @@ async def create_new_application(
     Tworzy nowy roboczy wniosek grantowy ('roboczy') dla wskazanego naboru.
     Sprawdza, czy nabór nie jest zamknięty. Wymaga zalogowanego użytkownika.
     """
-    return create_grant_application(user.user_id, data)
+    user_id = user.user_id or ""
+    return create_grant_application(user_id, data)
 
 
 @applications_router.get("/my", response_model=List[GrantApplicationResponse])
@@ -99,7 +100,8 @@ async def get_my_applications(
     """
     Pobiera listę wszystkich wniosków grantowych zalogowanego autora (pełna izolacja danych).
     """
-    return list_user_applications(user.user_id)
+    user_id = user.user_id or ""
+    return list_user_applications(user_id)
 
 
 @applications_router.get("/{application_id}", response_model=GrantApplicationResponse)
@@ -112,8 +114,9 @@ async def get_application(
     Autor ma dostęp wyłącznie do swojego wniosku (403 dla wniosków innych użytkowników).
     Administrator ROPS ma wgląd do wszystkich wniosków.
     """
+    user_id = user.user_id or ""
     return get_application_for_author(
-        application_id, user.user_id, is_admin=user.is_admin
+        application_id, user_id, is_admin=user.is_admin
     )
 
 
@@ -128,7 +131,8 @@ async def update_application_draft(
     Autor może modyfikować wyłącznie swój wniosek i wyłącznie w statusie 'roboczy'.
     Złożone wnioski ('zlozony') są zablokowane przed edycją.
     """
-    return update_draft_application(application_id, user.user_id, update_data)
+    user_id = user.user_id or ""
+    return update_draft_application(application_id, user_id, update_data)
 
 
 @applications_router.post("/{application_id}/submit", response_model=GrantApplicationResponse)
@@ -142,7 +146,8 @@ async def submit_application(
     (suma pozycji planu działania == wnioskowana kwota) oraz świadome potwierdzenie oświadczeń.
     Blokuje składanie wniosków, jeśli nabór jest zamknięty.
     """
-    return submit_grant_application(application_id, user.user_id)
+    user_id = user.user_id or ""
+    return submit_grant_application(application_id, user_id)
 
 
 @applications_router.get("/{application_id}/preview", response_model=GrantApplicationExportResponse)
@@ -155,8 +160,9 @@ async def export_application(
     Zwraca ustrukturyzowane dane wniosku oraz pełny sformatowany dokument gotowy
     do druku / eksportu zgodnie z oficjalnym wzorem Załącznika nr 3 ROPS Kraków.
     """
+    user_id = user.user_id or ""
     return export_grant_application(
-        application_id, user.user_id, is_admin=user.is_admin
+        application_id, user_id, is_admin=user.is_admin
     )
 
 
@@ -186,7 +192,8 @@ async def admin_get_application_details(
     """
     Szczegółowy wgląd we wniosek grantowy dla Administratora ROPS Kraków.
     """
-    return get_application_for_author(application_id, admin.user_id, is_admin=True)
+    admin_id = admin.user_id or "admin-rops"
+    return get_application_for_author(application_id, admin_id, is_admin=True)
 
 
 @admin_grant_router.patch("/{application_id}/status", response_model=GrantApplicationResponse)
@@ -199,4 +206,5 @@ async def admin_change_application_status(
     Zmienia status wniosku w procesie oceny ROPS ('w_ocenie', 'zaakceptowany', 'odrzucony')
     wraz z dodaniem wewnętrznej notatki urzędowej.
     """
-    return admin_update_application_status(application_id, update_data, admin.user_id)
+    admin_id = admin.user_id or "admin-rops"
+    return admin_update_application_status(application_id, update_data, admin_id)
