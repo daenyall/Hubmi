@@ -199,18 +199,86 @@ class TestInnovationTesting:
         )
         assert applicant_res.status_code == 403
 
-        # 3. Zmiana jako Administrator ROPS Kraków
+        # 3. Zmiana jako Administrator ROPS Kraków z zachowaniem uwag wnioskodawcy
         admin_res = client.patch(
             f"/api/testing/applications/{app_id}/status",
             headers={"X-Admin-Role": "rops_admin"},
             json={
                 "status": "zaakceptowane",
-                "notes": "Zatwierdzono dofinansowanie pilotażu z ROPS Kraków.",
+                "rops_notes": "Zatwierdzono dofinansowanie pilotażu z ROPS Kraków.",
             },
         )
         assert admin_res.status_code == 200
         assert admin_res.json()["status"] == "zaakceptowane"
-        assert "Zatwierdzono" in admin_res.json()["notes"]
+        assert "Zatwierdzono" in (admin_res.json()["rops_notes"] or "")
+
+    def test_patch_status_rejects_invalid_values(self):
+        """PATCH status odrzuca wartości spoza dozwolonej listy (kod 422)."""
+        inv_id = self.test_inv_id
+        create_res = client.post(
+            "/api/testing/apply",
+            json={
+                "innovation_id": inv_id,
+                "tester_type": "JST",
+                "institution_name": "Gmina Testowa Status",
+                "contact_person": "Piotr Nowak",
+                "contact_email": "piotr@gmina.pl",
+            },
+        )
+        app_id = create_res.json()["id"]
+
+        invalid_res = client.patch(
+            f"/api/testing/applications/{app_id}/status",
+            headers={"X-Admin-Role": "rops_admin"},
+            json={"status": "nieistniejacy_status_123"},
+        )
+        assert invalid_res.status_code == 422
+
+    def test_patch_status_preserves_applicant_notes(self):
+        """Notatka ROPS Kraków nie nadpisuje uwag zgłaszającego wnioskodawcy."""
+        inv_id = self.test_inv_id
+        applicant_notes = "Ważne: test w trudnodostępnej lokalizacji górskiej, potrzebny dowóz."
+        create_res = client.post(
+            "/api/testing/apply",
+            json={
+                "innovation_id": inv_id,
+                "tester_type": "JST",
+                "institution_name": "Gmina Bukowina",
+                "contact_person": "Stanisław Karpiel",
+                "contact_email": "stanislaw@bukowina.pl",
+                "notes": applicant_notes,
+            },
+        )
+        assert create_res.status_code == 201
+        app_id = create_res.json()["id"]
+        assert create_res.json()["notes"] == applicant_notes
+
+        # Administrator ROPS dopisuje swoją notatkę urzędową
+        rops_note = "ROPS zapewnia mobilnego asystenta na czas testu."
+        patch_res = client.patch(
+            f"/api/testing/applications/{app_id}/status",
+            headers={"X-Admin-Role": "rops_admin"},
+            json={
+                "status": "zaakceptowane",
+                "rops_notes": rops_note,
+            },
+        )
+        assert patch_res.status_code == 200
+        data = patch_res.json()
+        assert data["status"] == "zaakceptowane"
+        assert data["notes"] == applicant_notes, "Uwagi zgłaszającego NIE MOGĄ być nadpisane przez notatkę ROPS!"
+        assert data["rops_notes"] == rops_note
+
+    def test_feedback_summary_zero_reviews(self):
+        """Dla innowacji bez żadnych opinii wskaźnik rekomendacji wynosi 0.0%, a nie 100%."""
+        empty_inv = f"inv_empty_{uuid.uuid4().hex[:6]}"
+        res = client.get(f"/api/testing/feedback/{empty_inv}")
+        assert res.status_code == 200
+        summary = res.json()
+        assert summary["total_reviews"] == 0
+        assert summary["overall_rating"] == 0.0
+        assert summary["recommendation_percentage"] == 0.0
+        assert summary["recent_reviews"] == []
 
     def test_submit_feedback_and_scoring(self):
         """Dodanie recenzji wylicza poprawną średnią ważoną i zapisuje wskaźniki."""

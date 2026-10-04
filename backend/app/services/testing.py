@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 
 from app.db.supabase import get_supabase_client
 from app.models.schemas import (
+    ALLOWED_TESTING_STATUSES,
     TestApplicationCreate,
     TestApplicationResponse,
     TestApplicationStatusUpdate,
@@ -28,6 +29,43 @@ def _to_dict(data: Any) -> Dict[str, Any]:
     if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
         return data[0]
     return {}
+
+
+def _parse_application_row(
+    r: Dict[str, Any],
+    fallback_id: Optional[str] = None,
+    fallback_data: Optional[TestApplicationCreate] = None,
+    now_str: Optional[str] = None,
+) -> TestApplicationResponse:
+    notes_val = r.get("notes")
+    rops_notes_val = r.get("rops_notes")
+
+    # Obsługa separacji uwag zgłaszającego i notatek urzędowych ROPS
+    if not rops_notes_val and notes_val and "[Notatka ROPS]: " in notes_val:
+        parts = notes_val.split("\n\n[Notatka ROPS]: ")
+        if len(parts) == 2:
+            notes_val = parts[0] if parts[0] else None
+            rops_notes_val = parts[1]
+        elif notes_val.startswith("[Notatka ROPS]: "):
+            rops_notes_val = notes_val[len("[Notatka ROPS]: "):]
+            notes_val = None
+
+    return TestApplicationResponse(
+        id=str(r.get("id", fallback_id or "")),
+        innovation_id=str(r.get("innovation_id", getattr(fallback_data, "innovation_id", ""))),
+        tester_type=str(r.get("tester_type", getattr(fallback_data, "tester_type", "JST"))),
+        institution_name=str(r.get("institution_name", getattr(fallback_data, "institution_name", ""))),
+        contact_person=str(r.get("contact_person", getattr(fallback_data, "contact_person", ""))),
+        contact_email=str(r.get("contact_email", getattr(fallback_data, "contact_email", ""))),
+        contact_phone=r.get("contact_phone", getattr(fallback_data, "contact_phone", None)),
+        testing_scope=str(r.get("testing_scope", getattr(fallback_data, "testing_scope", "pilotaz_3m"))),
+        target_audience_count=int(r.get("target_audience_count") or getattr(fallback_data, "target_audience_count", 20)),
+        status=str(r.get("status", "nowe")),
+        notes=notes_val,
+        rops_notes=rops_notes_val,
+        created_at=str(r.get("created_at") or now_str or ""),
+        updated_at=str(r.get("updated_at") or now_str or ""),
+    )
 
 
 
@@ -62,20 +100,11 @@ def apply_for_testing(data: TestApplicationCreate) -> TestApplicationResponse:
             res = supabase.table("innovation_test_applications").insert(row_data).execute()
             inserted = _to_dict(res.data)
             if inserted:
-                return TestApplicationResponse(
-                    id=str(inserted.get("id", app_id)),
-                    innovation_id=str(inserted.get("innovation_id", data.innovation_id)),
-                    tester_type=str(inserted.get("tester_type", data.tester_type)),
-                    institution_name=str(inserted.get("institution_name", data.institution_name)),
-                    contact_person=str(inserted.get("contact_person", data.contact_person)),
-                    contact_email=str(inserted.get("contact_email", data.contact_email)),
-                    contact_phone=inserted.get("contact_phone"),
-                    testing_scope=str(inserted.get("testing_scope", data.testing_scope)),
-                    target_audience_count=int(inserted.get("target_audience_count") or data.target_audience_count),
-                    status=str(inserted.get("status", "nowe")),
-                    notes=inserted.get("notes"),
-                    created_at=str(inserted.get("created_at") or now_str),
-                    updated_at=str(inserted.get("updated_at") or now_str),
+                return _parse_application_row(
+                    inserted,
+                    fallback_id=app_id,
+                    fallback_data=data,
+                    now_str=now_str,
                 )
             raise RuntimeError("Supabase returned empty data on insert.")
         except HTTPException:
@@ -119,23 +148,7 @@ def list_applications(
             res = query.order("created_at", desc=True).limit(limit).execute()
             rows = _to_dict_list(res.data)
             for r in rows:
-                results.append(
-                    TestApplicationResponse(
-                        id=str(r.get("id")),
-                        innovation_id=str(r.get("innovation_id")),
-                        tester_type=str(r.get("tester_type", "JST")),
-                        institution_name=str(r.get("institution_name", "")),
-                        contact_person=str(r.get("contact_person", "")),
-                        contact_email=str(r.get("contact_email", "")),
-                        contact_phone=r.get("contact_phone"),
-                        testing_scope=str(r.get("testing_scope", "pilotaz_3m")),
-                        target_audience_count=int(r.get("target_audience_count") or 20),
-                        status=str(r.get("status", "nowe")),
-                        notes=r.get("notes"),
-                        created_at=r.get("created_at"),
-                        updated_at=r.get("updated_at"),
-                    )
-                )
+                results.append(_parse_application_row(r))
             return results
         except Exception as e:
             raise HTTPException(
@@ -163,21 +176,7 @@ def get_application_by_id(application_id: str) -> Optional[TestApplicationRespon
             )
             r = _to_dict(res.data)
             if r:
-                return TestApplicationResponse(
-                    id=str(r.get("id")),
-                    innovation_id=str(r.get("innovation_id")),
-                    tester_type=str(r.get("tester_type", "JST")),
-                    institution_name=str(r.get("institution_name", "")),
-                    contact_person=str(r.get("contact_person", "")),
-                    contact_email=str(r.get("contact_email", "")),
-                    contact_phone=r.get("contact_phone"),
-                    testing_scope=str(r.get("testing_scope", "pilotaz_3m")),
-                    target_audience_count=int(r.get("target_audience_count") or 20),
-                    status=str(r.get("status", "nowe")),
-                    notes=r.get("notes"),
-                    created_at=r.get("created_at"),
-                    updated_at=r.get("updated_at"),
-                )
+                return _parse_application_row(r)
             return None
         except Exception as e:
             raise HTTPException(
@@ -194,42 +193,64 @@ def update_application_status(
     """
     Zmienia status pilotażu / testu w gminie (np. zaakceptowane, w_trakcie, zakonczone).
     Dedykowane dla administratora ROPS Kraków.
+    Gwarantuje, że notatka urzędowa ROPS nie nadpisuje uwag zgłaszającego (applicant notes).
+    Odrzuca niepoprawne statusy spoza listy dozwolonych.
     """
+    status_val = update_data.status.strip().lower()
+    if status_val == "nowa":
+        status_val = "nowe"
+    if status_val not in ALLOWED_TESTING_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Niedozwolony status: '{update_data.status}'. Dozwolone wartości to: {sorted(list(ALLOWED_TESTING_STATUSES))}.",
+        )
+
     now_str = datetime.now(timezone.utc).isoformat()
+    rops_note = update_data.rops_notes if update_data.rops_notes is not None else update_data.notes
+
     update_dict: Dict[str, Any] = {
-        "status": update_data.status,
+        "status": status_val,
         "updated_at": now_str,
     }
-    if update_data.notes is not None:
-        update_dict["notes"] = update_data.notes
+    if rops_note is not None:
+        update_dict["rops_notes"] = rops_note
 
     supabase = get_supabase_client()
     if supabase:
         try:
-            res = (
-                supabase.table("innovation_test_applications")
-                .update(update_dict)
-                .eq("id", application_id)
-                .execute()
-            )
+            try:
+                res = (
+                    supabase.table("innovation_test_applications")
+                    .update(update_dict)
+                    .eq("id", application_id)
+                    .execute()
+                )
+            except Exception as e:
+                err_text = str(e)
+                if ("rops_notes" in err_text or "PGRST204" in err_text) and rops_note is not None:
+                    # Fallback gdy kolumna rops_notes nie istnieje w Supabase:
+                    # pobieramy istniejące zgłoszenie i nie nadpisujemy uwag zgłaszającego.
+                    current_app = get_application_by_id(application_id)
+                    existing_applicant_note = current_app.notes if current_app else None
+                    if existing_applicant_note and existing_applicant_note.strip():
+                        combined = f"{existing_applicant_note}\n\n[Notatka ROPS]: {rops_note}"
+                    else:
+                        combined = f"[Notatka ROPS]: {rops_note}"
+                    res = (
+                        supabase.table("innovation_test_applications")
+                        .update({"status": status_val, "notes": combined, "updated_at": now_str})
+                        .eq("id", application_id)
+                        .execute()
+                    )
+                else:
+                    raise
+
             r = _to_dict(res.data)
             if r:
-                return TestApplicationResponse(
-                    id=str(r.get("id")),
-                    innovation_id=str(r.get("innovation_id")),
-                    tester_type=str(r.get("tester_type", "JST")),
-                    institution_name=str(r.get("institution_name", "")),
-                    contact_person=str(r.get("contact_person", "")),
-                    contact_email=str(r.get("contact_email", "")),
-                    contact_phone=r.get("contact_phone"),
-                    testing_scope=str(r.get("testing_scope", "pilotaz_3m")),
-                    target_audience_count=int(r.get("target_audience_count") or 20),
-                    status=str(r.get("status", update_data.status)),
-                    notes=r.get("notes"),
-                    created_at=r.get("created_at"),
-                    updated_at=r.get("updated_at"),
-                )
+                return _parse_application_row(r)
             return None
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -399,7 +420,7 @@ def get_innovation_feedback_summary(innovation_id: str) -> InnovationFeedbackSum
             avg_effectiveness=0.0,
             avg_accessibility=0.0,
             overall_rating=0.0,
-            recommendation_percentage=100.0,
+            recommendation_percentage=0.0,
             recent_reviews=[],
         )
 
