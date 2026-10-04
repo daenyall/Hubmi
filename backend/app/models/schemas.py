@@ -1,5 +1,5 @@
-from typing import Optional, Any, Dict
-from pydantic import BaseModel, Field
+from typing import Optional, Any, Dict, Set
+from pydantic import BaseModel, Field, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -196,6 +196,15 @@ class TestApplicationCreate(BaseModel):
     notes: Optional[str] = Field(default=None, description="Dodatkowe uwagi lub specyfika grupy docelowej")
 
 
+ALLOWED_TESTING_STATUSES: Set[str] = {
+    "nowe",
+    "zaakceptowane",
+    "w_trakcie",
+    "zakonczone",
+    "odrzucone",
+}
+
+
 class TestApplicationResponse(BaseModel):
     id: str
     innovation_id: str
@@ -208,13 +217,36 @@ class TestApplicationResponse(BaseModel):
     target_audience_count: int = 20
     status: str = "nowe"
     notes: Optional[str] = None
+    rops_notes: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
 
 class TestApplicationStatusUpdate(BaseModel):
-    status: str = Field(..., description="Nowy status: 'nowe', 'zaakceptowane', 'w_trakcie', 'zakonczone', 'odrzucone'")
-    notes: Optional[str] = Field(default=None, description="Notatka urzędowa ROPS")
+    status: str = Field(
+        ...,
+        description="Nowy status: 'nowe', 'zaakceptowane', 'w_trakcie', 'zakonczone', 'odrzucone'",
+    )
+    notes: Optional[str] = Field(
+        default=None,
+        description="Notatka urzędowa ROPS (dla wstecznej kompatybilności)",
+    )
+    rops_notes: Optional[str] = Field(
+        default=None,
+        description="Dedykowana notatka urzędowa ROPS Kraków",
+    )
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        cleaned = v.strip().lower()
+        if cleaned == "nowa":
+            cleaned = "nowe"
+        if cleaned not in ALLOWED_TESTING_STATUSES:
+            raise ValueError(
+                f"Niedozwolony status: '{v}'. Dozwolone wartości to: {sorted(list(ALLOWED_TESTING_STATUSES))}."
+            )
+        return cleaned
 
 
 class TestFeedbackCreate(BaseModel):

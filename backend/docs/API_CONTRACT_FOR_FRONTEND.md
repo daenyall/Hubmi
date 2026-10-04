@@ -173,3 +173,40 @@ Backend posiada włączone wsparcie dla:
     "author_name": "Anna Nowak, CUS Myślenice"
   }
   ```
+
+#### 3. Aktualizacja Statusu Pilotażu przez ROPS Kraków (Zabezpieczone)
+- **Metoda i URL**: `PATCH /api/testing/applications/{application_id}/status`
+- **Nagłówek**: `Authorization: Bearer <jwt>` (użytkownik ROPS) lub `X-Admin-Role: rops_admin` w dev
+- **Request Body**:
+  ```json
+  {
+    "status": "zaakceptowane",
+    "rops_notes": "Zatwierdzono dofinansowanie pilotażu ze środków ROPS Kraków."
+  }
+  ```
+  *(Dla kompatybilności wstecznej pole `notes` w body jest traktowane jako `rops_notes`)*.
+- **Dozwolone statusy (`status`)**:
+  - `"nowe"`, `"zaakceptowane"`, `"w_trakcie"`, `"zakonczone"`, `"odrzucone"`.
+  - Każda wartość spoza tej listy zwraca kod `422 Unprocessable Entity`.
+- **Zasada nienaruszalności uwag wnioskodawcy**:
+  - `TestApplicationResponse.notes` zawiera wyłącznie uwagi instytucji zgłaszającej z formularza `apply`.
+  - `TestApplicationResponse.rops_notes` zawiera notatkę urzędową ROPS dodaną podczas `PATCH`.
+  - Notatka ROPS nigdy nie nadpisuje uwag zgłaszającego!
+
+#### 4. Raport Ewaluacji i Oceny Innowacji
+- **Metoda i URL**: `GET /api/testing/feedback/{innovation_id}`
+- **Response (200 OK)**:
+  ```json
+  {
+    "innovation_id": "inv_01",
+    "total_reviews": 0,
+    "avg_usability": 0.0,
+    "avg_effectiveness": 0.0,
+    "avg_accessibility": 0.0,
+    "overall_rating": 0.0,
+    "recommendation_percentage": 0.0,
+    "recent_reviews": []
+  }
+  ```
+  *Uwaga: Przy `total_reviews == 0`, pole `recommendation_percentage` wynosi `0.0%` (nie sugeruje 100% poleceń).*
+
