@@ -118,7 +118,8 @@ test("parser czyta rops_notes osobno; null i brak pola dają null", () => {
   assert.equal(model.parseApplication(appRow({ notes: APPLICANT, rops_notes: "Notatka" })).rops_notes, "Notatka");
   assert.equal(model.parseApplication(appRow({ notes: APPLICANT, rops_notes: "Notatka" })).notes, APPLICANT);
   assert.equal(model.parseApplication(appRow({ rops_notes: null })).rops_notes, null);
-  const { rops_notes: _omit, ...legacy } = appRow();
+  const legacy = appRow();
+  delete legacy.rops_notes;
   assert.equal(model.parseApplication(legacy).rops_notes, null);
   assert.throws(() => model.parseApplication(appRow({ rops_notes: 7 })), /rops_notes/);
 });

@@ -6,8 +6,8 @@ import { USE_MOCK_MATCHING } from "@/lib/api";
 
 export function SiteHeader() {
   return <>
-    <a href="#main-content" className="sr-only z-50 rounded-lg bg-primary p-4 text-primary-foreground focus:not-sr-only focus:absolute focus:left-4 focus:top-4">Przejdź do treści</a>
-    <header className="border-b border-border bg-card">
+    <a href="#main-content" className="print:hidden sr-only z-50 rounded-lg bg-primary p-4 text-primary-foreground focus:not-sr-only focus:absolute focus:left-4 focus:top-4">Przejdź do treści</a>
+    <header className="border-b border-border bg-card print:hidden">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-[20px] py-5 sm:px-[32px]">
         <Link href="/" aria-label="HubMI — strona główna" className="flex min-h-11 items-center gap-3 rounded-sm">
           <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Leaf className="size-5" aria-hidden="true" /></span>
@@ -19,6 +19,7 @@ export function SiteHeader() {
           <Link href="/zglos-potrzebe" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Zgłoś potrzebę</Link>
           <Link href="/kreator" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Zgłoś pomysł</Link>
           <Link href="/tester" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Tester innowacji</Link>
+          <Link href="/wnioski" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Wniosek w naborze</Link>
           <Link href="/moje-zgloszenia" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Moje zgłoszenia</Link>
           <Link href="/rops" className="inline-flex min-h-11 items-center rounded-sm text-primary underline-offset-4 hover:underline">Panel ROPS</Link>
           <AuthActions />
@@ -29,7 +30,7 @@ export function SiteHeader() {
   </>;
 }
 export function SiteFooter() {
-  return <footer className="border-t border-border px-[20px] py-6 text-sm text-muted-foreground">
+  return <footer className="border-t border-border px-[20px] py-6 text-sm text-muted-foreground print:hidden">
     <div className="mx-auto flex max-w-5xl flex-wrap justify-between gap-2 sm:px-3"><p>HubMI · Innowacje społeczne</p><p>HackYeah 2026</p></div>
   </footer>;
 }
