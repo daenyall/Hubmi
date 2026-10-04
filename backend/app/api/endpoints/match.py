@@ -182,17 +182,22 @@ async def match_problem(request: MatchRequest, req: Request):
         hybrid_score = min(round(base_sim + lexical_boost, 4), 0.99)
 
         if hybrid_score >= threshold:
+            why_rel = to_str(item.get("why_relevant"))
+            is_demo = bool(item.get("is_demonstrative", False)) or ("demonstracyj" in (why_rel or "").lower())
+            src_label = to_str(item.get("source_label")) or to_str(item.get("author_or_institution")) or "ROPS Kraków"
             scored_items.append(
                 MatchItem(
                     id=str(item.get("id", "")).strip(),
                     title=item_title,
                     similarity_score=hybrid_score,
-                    why_relevant=to_str(item.get("why_relevant")),
+                    why_relevant=why_rel,
                     source_url=to_str(item.get("source_url")),
                     target_group=to_str(item.get("target_group")),
                     category=item_category,
                     description=to_str(item.get("description")),
                     status=item_status,
+                    is_demonstrative=is_demo,
+                    source_label=src_label,
                 )
             )
 

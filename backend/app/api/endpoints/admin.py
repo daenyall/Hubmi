@@ -332,6 +332,8 @@ async def list_admin_innovations(
                 category=r.get("category"),
                 description=r.get("description"),
                 status=str(r.get("status", "sprawdzone")).strip(),
+                is_demonstrative=bool(r.get("is_demonstrative", False)) or ("demonstracyj" in str(r.get("why_relevant", "")).lower()),
+                source_label=r.get("source_label") or r.get("author_or_institution") or "ROPS Kraków",
             )
             for r in rows
         ]
@@ -394,6 +396,8 @@ async def create_admin_innovation(
             category=inserted.get("category"),
             description=inserted.get("description"),
             status=str(inserted.get("status", payload.status)),
+            is_demonstrative=bool(inserted.get("is_demonstrative", False)),
+            source_label=inserted.get("source_label") or inserted.get("author_or_institution") or "ROPS Kraków",
         )
     except Exception as e:
         logger.error("Błąd zapisu innowacji: %s", e)
@@ -426,6 +430,8 @@ async def get_admin_innovation_by_id(
         category=curr.get("category"),
         description=curr.get("description"),
         status=str(curr.get("status", "sprawdzone")),
+        is_demonstrative=bool(curr.get("is_demonstrative", False)) or ("demonstracyj" in str(curr.get("why_relevant", "")).lower()),
+        source_label=curr.get("source_label") or curr.get("author_or_institution") or "ROPS Kraków",
     )
 
 
@@ -494,6 +500,8 @@ async def update_admin_innovation(
             category=updated.get("category"),
             description=updated.get("description"),
             status=str(updated.get("status", "sprawdzone")),
+            is_demonstrative=bool(updated.get("is_demonstrative", False)) or ("demonstracyj" in str(updated.get("why_relevant", "")).lower()),
+            source_label=updated.get("source_label") or updated.get("author_or_institution") or "ROPS Kraków",
         )
     except Exception as e:
         logger.error("Błąd aktualizacji innowacji %s: %s", innovation_id, e)
@@ -528,6 +536,8 @@ async def publish_admin_innovation(
             category=updated.get("category"),
             description=updated.get("description"),
             status="sprawdzone",
+            is_demonstrative=bool(updated.get("is_demonstrative", False)) or ("demonstracyj" in str(updated.get("why_relevant", "")).lower()),
+            source_label=updated.get("source_label") or updated.get("author_or_institution") or "ROPS Kraków",
         )
     except Exception as e:
         logger.error("Błąd publikacji innowacji %s: %s", innovation_id, e)

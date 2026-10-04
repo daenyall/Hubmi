@@ -10,6 +10,7 @@ from app.api.endpoints import (
     testing,
     needs,
     grant_applications,
+    knowledge_resources,
 )
 
 api_router = APIRouter()
@@ -27,6 +28,8 @@ api_router.include_router(grant_applications.calls_router, tags=["Grant Calls"])
 api_router.include_router(grant_applications.applications_router, tags=["Grant Applications"])
 api_router.include_router(grant_applications.admin_grant_router, tags=["Admin Grant Applications"])
 api_router.include_router(grant_applications.admin_calls_router, tags=["Admin Grant Calls"])
+api_router.include_router(knowledge_resources.router, tags=["Knowledge Resources"])
+api_router.include_router(knowledge_resources.admin_router, tags=["Admin Knowledge Resources"])
 api_router.include_router(example.router, prefix="/example", tags=["Example"])
 
 

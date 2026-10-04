@@ -1,4 +1,4 @@
-from typing import Optional, Any, Dict, Set
+from typing import Optional, Any, Dict, Set, List
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -50,6 +50,8 @@ class MatchItem(BaseModel):
     category: Optional[str] = None
     description: Optional[str] = None
     status: str = "sprawdzone"
+    is_demonstrative: bool = False
+    source_label: Optional[str] = None
 
 
 class MatchResponse(BaseModel):
@@ -531,6 +533,63 @@ class GrantApplicationExportResponse(BaseModel):
     submitted_at: Optional[str] = None
     structured_data: Dict[str, Any]
     formatted_document_text: str
+
+
+# ==============================================================================
+# MODELE ZASOBNIKA WIEDZY ROPS (RAPORTY, DIAGNOZY, MATERIAŁY, WIDEO)
+# ==============================================================================
+
+class KnowledgeResourceBase(BaseModel):
+    title: str = Field(..., min_length=3, max_length=300, description="Tytuł zasobu wiedzy")
+    description: str = Field(..., min_length=10, max_length=10000, description="Opis zawartości i wniosków z materiału")
+    group_id: str = Field(default="materialy-edukacyjne", description="Grupa zasobu: 'mapa-wyzwan', 'raporty-diagnozy', 'materialy-edukacyjne', 'filmy-i-dobre-praktyki'")
+    group_title: Optional[str] = Field(default="Materiały edukacyjne", description="Czytelna nazwa grupy")
+    kind: str = Field(default="Dokument PDF", description="Rodzaj zasobu: 'Dokument PDF', 'Plansza PDF', 'Raport roczny', 'Pliki do pobrania', 'Serwis z danymi', 'Katalog na stronie ROPS', 'Strona tematyczna', 'Materiał filmowy (wideo)'")
+    url: str = Field(..., description="Zweryfikowany odnośnik HTTPS do zasobu")
+    year: Optional[int] = Field(default=None, description="Rok opracowania danych (np. 2025, 2026)")
+    coverage_scope: Optional[str] = Field(default=None, description="Zasięg danych: np. 'woj. małopolskie', 'ogólnopolski', 'lokalny'")
+    caveat: Optional[str] = Field(default=None, description="Zastrzeżenia lub ograniczenia zgłoszone przez źródło")
+
+
+class KnowledgeResourceCreate(KnowledgeResourceBase):
+    id: Optional[str] = Field(default=None, description="Opcjonalny własny identyfikator (np. 'ioss', 'ocena-zasobow')")
+    status: str = Field(default="roboczy", description="Status zasobu: 'roboczy', 'do_weryfikacji', 'zweryfikowany', 'opublikowany'")
+
+
+class KnowledgeResourceUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=3, max_length=300)
+    description: Optional[str] = Field(default=None, min_length=10, max_length=10000)
+    group_id: Optional[str] = None
+    group_title: Optional[str] = None
+    kind: Optional[str] = None
+    url: Optional[str] = None
+    year: Optional[int] = None
+    coverage_scope: Optional[str] = None
+    caveat: Optional[str] = None
+    status: Optional[str] = None
+
+
+class KnowledgeResourceVerifyRequest(BaseModel):
+    verification_notes: Optional[str] = Field(default=None, description="Notatka urzędowa z weryfikacji autentyczności i dostępności źródła")
+
+
+class KnowledgeResourceResponse(KnowledgeResourceBase):
+    id: str
+    status: str
+    verified_by: Optional[str] = None
+    verified_at: Optional[str] = None
+    published_by: Optional[str] = None
+    published_at: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class KnowledgeResourceGroupResponse(BaseModel):
+    id: str
+    title: str
+    intro: str
+    items: List[KnowledgeResourceResponse]
+
 
 
 

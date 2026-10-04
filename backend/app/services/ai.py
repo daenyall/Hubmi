@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import math
+import os
 import re
 from functools import lru_cache
 from typing import List, Optional, Any, Dict
@@ -140,7 +141,15 @@ def _get_embedding_tuple(clean_text: str, model_name: Optional[str] = None) -> t
                 raise RuntimeError(f"Błąd usługi embeddingów OpenAI: {e}")
         raise RuntimeError("Klient OpenAI nie jest skonfigurowany.")
 
-    # Tryb awaryjny wyłącznie w środowisku testowym bez skonfigurowanych kluczy
+    # Tryb awaryjny wyłącznie w środowisku testowym (pytest) bez skonfigurowanych kluczy
+    is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
+    if not is_test_runner:
+        logger.error("Brak skonfigurowanych kluczy API AI (GEMINI_API_KEY ani OPENAI_API_KEY) poza środowiskiem testowym.")
+        raise RuntimeError(
+            "Brak skonfigurowanych kluczy API AI (GEMINI_API_KEY ani OPENAI_API_KEY). "
+            "Cichy fallback deterministyczny matchmakingu jest zablokowany poza środowiskiem testowym."
+        )
+
     return tuple(_fallback_deterministic_embedding(clean_text))
 
 
@@ -200,6 +209,31 @@ WYTYCZNE DLA PLANU ADAPTACJI (zwróć w przejrzystym Markdown):
    - 3-5 mierzalnych wskaźników do ewaluacji testu innowacji."""
 
 
+def _get_consistent_grants_proposals() -> list[str]:
+    return [
+        "Inkubator Włączenia Społecznego ROPS Kraków (propozycja grantu testującego – do weryfikacji w bieżącym naborze)",
+        "FERS – Fundusze Europejskie dla Rozwoju Społecznego (potencjalny nabór regionalny – propozycja do weryfikacji)",
+        "PFRON – Program Dostępność i wyrównywanie szans (propozycja wsparcia – do weryfikacji)",
+        "Fundusze Sołeckie / GKRPA (propozycja lokalnego wkładu własnego – do weryfikacji)",
+    ]
+
+
+def _get_consistent_kpis(muni_type_text: str) -> list[str]:
+    return [
+        f"Objęcie działaniami pilotażowymi min. 15–25 mieszkańców w jednostce ({muni_type_text})",
+        "Uzyskanie min. 85% pozytywnych ocen w formularzu ewaluacyjnym testera ROPS",
+        "Sformalizowanie partnerstwa wdrożeniowego z min. 2 lokalnymi organizacjami (np. CUS, OSP, KGW)",
+        "Potwierdzenie pełnej zgodności rozwiązań ze standardami dostępności WCAG 2.1 AA / ETR",
+    ]
+
+
+DISCLAIMER_ADAPTATION_PROPOSALS = (
+    "Przedstawione źródła finansowania, szacunki budżetowe oraz wskaźniki KPI stanowią propozycje doradcze "
+    "generowane przez asystenta adaptacji. Wszystkie rekomendacje finansowania pozostają propozycjami "
+    "wymagającymi formalnej weryfikacji z aktualnymi regulaminami i harmonogramami naborów ROPS Kraków."
+)
+
+
 def _build_fallback_adaptation_plan(
     innovation_title: str,
     context: str,
@@ -209,8 +243,8 @@ def _build_fallback_adaptation_plan(
     key_partners: Optional[list[str]] = None,
 ) -> str:
     muni_type = municipality_type or "Gmina wiejska / miejsko-wiejska"
-    budget = budget_range or "12 000 – 25 000 PLN"
-    horizon = time_horizon or "3 miesiące"
+    budget = budget_range or "15 000 – 25 000 PLN (szacunkowy koszt fazy pilotażowej)"
+    horizon = time_horizon or "3 miesiące (faza pilotażowa)"
     partners = ", ".join(key_partners) if key_partners else "Centrum Usług Społecznych (CUS), Koło Gospodyń Wiejskich (KGW), Ochotnicza Straż Pożarna (OSP)"
 
     return f"""### Plan Adaptacji Innowacji Społecznej: {innovation_title}
@@ -241,18 +275,19 @@ def _build_fallback_adaptation_plan(
 #### 3. Szacunkowy Kosztorys Wdrożenia
 | Pozycja kosztowa | Zakres wydatku | Szacowany koszt (PLN) |
 | :--- | :--- | :--- |
-| Koordynator projektu | Wynagrodzenie koordynatora lokalnego (3 mies. x 1/2 etatu) | 7 500 PLN |
-| Materiały warsztatowe | Pakiety edukacyjne, materiały sensoryczne / techniczne | 3 200 PLN |
-| Transport i dostępność | Dowozy OSP dla seniorów i osób z niepełnosprawnościami | 2 300 PLN |
-| Poczęstunek i integracja | Przygotowanie poczęstunku przez KGW na 6 spotkań | 1 800 PLN |
-| Audyt dostępności i promocja | Opracowanie materiałów ETR (Easy to Read) i promocja lokalna | 1 200 PLN |
-| **SUMA CAŁKOWITA** | **Kompletny pilotaż w gminie** | **16 000 PLN** |
+| Koordynator projektu | Wynagrodzenie koordynatora lokalnego (3 mies. x 1/2 etatu) | 9 000 PLN |
+| Materiały warsztatowe | Pakiety edukacyjne, materiały sensoryczne / techniczne | 4 000 PLN |
+| Transport i dostępność | Dowozy OSP dla seniorów i osób z niepełnosprawnościami | 3 000 PLN |
+| Poczęstunek i integracja | Przygotowanie poczęstunku przez KGW na 6 spotkań | 2 000 PLN |
+| Audyt dostępności i promocja | Opracowanie materiałów ETR (Easy to Read) i promocja lokalna | 2 000 PLN |
+| **SUMA CAŁKOWITA** | **Kompletny pilotaż w jednostce ({budget})** | **20 000 PLN** |
 
-#### 4. Rekomendowane Źródła Finansowania
-- **Inkubator Innowacji Społecznych ROPS Kraków**: Dotacje i granty testujące (do 20 000 PLN).
-- **FERS (Fundusze Europejskie dla Rozwoju Społecznego)**: Projekty deinstytucjonalizacji usług społecznych.
-- **PFRON**: Środki na dostępność architektoniczną i cyfrową dla gmin.
-- **Fundusz Sołecki / GKRPA**: Wsparcie profilaktyki i aktywizacji lokalnej.
+#### 4. Rekomendowane Źródła Finansowania (Propozycje Wymagające Weryfikacji)
+*Wszystkie poniższe programy są propozycjami doradczymi i wymagają potwierdzenia z harmonogramem ROPS Kraków:*
+1. **Inkubator Włączenia Społecznego ROPS Kraków**: Propozycja grantu testującego (do weryfikacji w bieżącym naborze).
+2. **FERS – Fundusze Europejskie dla Rozwoju Społecznego**: Potencjalny nabór regionalny (propozycja do weryfikacji).
+3. **PFRON – Program Dostępność i wyrównywanie szans**: Propozycja wsparcia (do weryfikacji).
+4. **Fundusze Sołeckie / GKRPA**: Propozycja lokalnego wkładu własnego (do weryfikacji).
 
 #### 5. Standard Dostępności i Włączenia Społecznego (WCAG 2.1 AA)
 - Wszystkie materiały informacyjne przygotowane w standardzie **tekstu łatwego do czytania (ETR)** z kontrastem minimum 4.5:1.
@@ -260,10 +295,10 @@ def _build_fallback_adaptation_plan(
 - Możliwość dojazdu „door-to-door” zapewniona we współpracy z lokalną jednostką OSP.
 
 #### 6. Kluczowe Wskaźniki Sukcesu (KPI)
-1. **Liczba bezpośrednich odbiorców**: Minimum 20 mieszkańców objętych działaniami.
-2. **Wskaźnik zadowolenia**: Co najmniej 85% pozytywnych ocen w ankiecie testera ROPS.
-3. **Zaangażowanie partnerów**: Trwałe partnerstwo z co najmniej 2 organizacjami (OSP i KGW).
-4. **Wskaźnik wdrożeniowy**: Rekomendacja wdrożenia stałego rozwiązania do lokalnej strategii społecznej."""
+1. **Liczba bezpośrednich odbiorców**: Objęcie działaniami pilotażowymi min. 15–25 mieszkańców w jednostce ({muni_type}).
+2. **Wskaźnik zadowolenia**: Uzyskanie min. 85% pozytywnych ocen w formularzu ewaluacyjnym testera ROPS.
+3. **Zaangażowanie partnerów**: Sformalizowanie partnerstwa wdrożeniowego z min. 2 lokalnymi organizacjami (np. CUS, OSP, KGW).
+4. **Dostępność i trwałość**: Potwierdzenie pełnej zgodności rozwiązań ze standardami dostępności WCAG 2.1 AA / ETR."""
 
 
 def _generate_gemini_plan(
@@ -324,8 +359,10 @@ def generate_adaptation_plan(
     Wskaźniki budżetu, grantów i KPI są dostosowane do podanego kontekstu i opatrzone notą doradczą.
     """
     muni_type_text = municipality_type or "Gmina / CUS"
-    budget_text = budget_range or "15 000 – 30 000 PLN (orientacyjny koszt fazy pilotażowej)"
-    
+    budget_text = budget_range or "15 000 – 25 000 PLN (szacunkowy koszt fazy pilotażowej)"
+    grants_proposals = _get_consistent_grants_proposals()
+    kpis_proposals = _get_consistent_kpis(muni_type_text)
+
     # 1. Próba z Gemini
     if settings.GEMINI_API_KEY:
         gemini_plan = _generate_gemini_plan(
@@ -341,21 +378,11 @@ def generate_adaptation_plan(
             return {
                 "adaptation_plan": gemini_plan,
                 "estimated_budget_pln": budget_text,
-                "recommended_grants": [
-                    "Inkubator Innowacji Społecznych ROPS Kraków (orientacyjny grant testujący)",
-                    "FERS - Fundusze Europejskie dla Rozwoju Społecznego (potencjalny nabór)",
-                    "PFRON - Dostępność i wyrównywanie szans",
-                    "Fundusze Sołeckie / GKRPA",
-                ],
-                "key_kpis": [
-                    f"Objęcie działaniami min. 15-25 mieszkańców w zgłaszającej się jednostce ({muni_type_text})",
-                    "Min. 85% pozytywnych ocen w formularzu ewaluacyjnym testera ROPS",
-                    "Sformalizowanie partnerstwa z lokalnymi organizacjami (np. CUS, OSP, KGW)",
-                    "Zgodność rozwiązań ze standardami dostępności WCAG 2.1 AA / ETR",
-                ],
+                "recommended_grants": grants_proposals,
+                "key_kpis": kpis_proposals,
                 "is_ai_generated": True,
                 "generation_source": "gemini",
-                "disclaimer": "Przedstawione źródła finansowania oraz szacunki budżetowe mają charakter orientacyjny i doradczy. Dostępność naborów wymaga weryfikacji w aktualnych harmonogramach ROPS Kraków.",
+                "disclaimer": DISCLAIMER_ADAPTATION_PROPOSALS,
             }
 
     # 2. Próba z OpenAI
@@ -383,19 +410,11 @@ def generate_adaptation_plan(
                 return {
                     "adaptation_plan": openai_text.strip(),
                     "estimated_budget_pln": budget_text,
-                    "recommended_grants": [
-                        "Inkubator Innowacji Społecznych ROPS Kraków (orientacyjny grant testujący)",
-                        "FERS - Fundusze Europejskie dla Rozwoju Społecznego",
-                        "PFRON - Dostępność i wyrównywanie szans",
-                    ],
-                    "key_kpis": [
-                        f"Objęcie działaniami min. 15-25 mieszkańców w jednostce ({muni_type_text})",
-                        "Min. 85% zadowolenia w ankiecie ewaluacyjnej ROPS",
-                        "Zgodność ze standardami dostępności WCAG 2.1 AA",
-                    ],
+                    "recommended_grants": grants_proposals,
+                    "key_kpis": kpis_proposals,
                     "is_ai_generated": True,
                     "generation_source": "openai",
-                    "disclaimer": "Przedstawione źródła finansowania oraz szacunki budżetowe mają charakter orientacyjny i doradczy. Dostępność naborów wymaga weryfikacji w aktualnych harmonogramach ROPS Kraków.",
+                    "disclaimer": DISCLAIMER_ADAPTATION_PROPOSALS,
                 }
         except Exception as e:
             logger.warning("OpenAI completion error: %s", e)
@@ -413,19 +432,11 @@ def generate_adaptation_plan(
     return {
         "adaptation_plan": fallback_text,
         "estimated_budget_pln": budget_text,
-        "recommended_grants": [
-            "Inkubator Innowacji Społecznych ROPS Kraków (orientacyjny grant testujący)",
-            "FERS - Fundusze Europejskie dla Rozwoju Społecznego",
-            "PFRON - Dostępność i wyrównywanie szans",
-        ],
-        "key_kpis": [
-            f"Objęcie działaniami min. 15-25 mieszkańców w jednostce ({muni_type_text})",
-            "Min. 85% zadowolenia w ankiecie ewaluacyjnej ROPS",
-            "Zgodność ze standardami dostępności WCAG 2.1 AA",
-        ],
+        "recommended_grants": grants_proposals,
+        "key_kpis": kpis_proposals,
         "is_ai_generated": False,
         "generation_source": "template_fallback",
-        "disclaimer": "Plan wygenerowano na podstawie ustandaryzowanego szablonu adaptacyjnego ROPS Kraków (brak aktywnego połączenia z modelem AI). Dane budżetowe i grantowe mają charakter poglądowy.",
+        "disclaimer": DISCLAIMER_ADAPTATION_PROPOSALS,
     }
 
 

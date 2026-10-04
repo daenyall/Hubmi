@@ -296,4 +296,79 @@ Wzór: *Załącznik nr 3 do Ogłoszenia projektu „Inkubator Włączenia Społe
   }
   ```
 
+---
+
+### H. Zarządzanie Zasobnikiem Wiedzy & Autentyczność Innowacji (Migracja 11)
+
+#### 1. Status Migracji Bazy Danych
+- Plik migracji: `backend/migrations/11_knowledge_resources.sql`.
+- Tabela: `public.knowledge_resources` z regułami RLS (odczyt publiczny dla `status = 'opublikowany'`, pełen dostęp dla roli `rops_admin` oraz `service_role`).
+- Zawiera początkowy zbiór 9 zweryfikowanych zasobów ROPS Kraków (Karty wyzwań, Raporty z diagnoz 2024–2025, Social Innovation Canvas, publikacje oraz zweryfikowane materiały filmowe).
+
+#### 2. Publiczne API Zasobnika Wiedzy (Dla Widoku Użytkownika)
+- **Lista wszystkich opublikowanych materiałów**:
+  - `GET /api/knowledge-resources`
+  - Filtry opcjonalne query params: `?group_id=mapa-wyzwan&kind=Karta wyzwania PDF`
+- **Materiały pogrupowane według sekcji frontendu**:
+  - `GET /api/knowledge-resources/grouped`
+  - Grupy:
+    1. `mapa-wyzwan` – Karty wyzwań i obszary problemowe (rok, zasięg małopolski).
+    2. `raporty-diagnozy` – Raporty badawcze i diagnozy regionalne ROPS Kraków.
+    3. `materialy-edukacyjne` – Narzędzia i publikacje (np. Social Innovation Canvas).
+    4. `filmy-i-dobre-praktyki` – Zweryfikowane odnośniki wideo do dobrych praktyk i szkoleń ROPS (brak konieczności hostowania wideo).
+- **Pojedynczy zasób wiedzy**:
+  - `GET /api/knowledge-resources/{resource_id}` (zwraca 404 dla szkiców nieopublikowanych).
+
+Struktura rekordu zasobu:
+```json
+{
+  "id": "social-innovation-canvas",
+  "group_id": "materialy-edukacyjne",
+  "group_title": "Materiały edukacyjne o innowacjach społecznych",
+  "title": "Social Innovation Canvas",
+  "description": "Plansza warsztatowa do rozpisania pomysłu na innowację społeczną...",
+  "kind": "Plansza PDF",
+  "url": "https://rops.krakow.pl/mpliki/IS/Moj_folder/INNO_AGH_-_SOCIAL_CANVAS.pdf",
+  "year": 2024,
+  "coverage_scope": "ogólnopolski",
+  "caveat": null,
+  "status": "opublikowany",
+  "verified_by": "rops_admin",
+  "verified_at": "2026-10-03T12:00:00Z",
+  "published_by": "rops_admin",
+  "published_at": "2026-10-03T12:00:00Z",
+  "created_at": "2026-10-03T12:00:00Z",
+  "updated_at": "2026-10-03T12:00:00Z"
+}
+```
+
+#### 3. Panel ROPS: Dodawanie, Edycja, Weryfikacja i Publikacja
+Wymaga uprawnień administratora (`Authorization: Bearer <jwt>` z rolą `rops_admin` lub deweloperskiego `X-Admin-Role: rops_admin`).
+
+- **Lista wszystkich zasobów (wraz ze szkicami i zweryfikowanymi)**: `GET /api/admin/knowledge-resources`
+- **Dodanie nowego zasobu (tworzony jako `roboczy` lub z wybranym statusem)**: `POST /api/admin/knowledge-resources`
+  - Waliduje bezpieczeństwo URL (wymagany bezpieczny protokół HTTPS).
+- **Szczegóły zasobu**: `GET /api/admin/knowledge-resources/{id}`
+- **Edycja zasobu**: `PUT /api/admin/knowledge-resources/{id}`
+- **Weryfikacja zasobu przez ROPS**: `POST /api/admin/knowledge-resources/{id}/verify`
+  - Body: `{"verification_notes": "Odnośnik sprawdzony, plik dostępny cyfrowo."}`
+  - Ustawia status `zweryfikowany`, stempel czasowy `verified_at` oraz audyt weryfikatora.
+- **Publikacja zasobu w Zasobniku**: `POST /api/admin/knowledge-resources/{id}/publish`
+  - Ustawia status `opublikowany` – zasób staje się natychmiast dostępny w publicznym API.
+- **Usunięcie zasobu**: `DELETE /api/admin/knowledge-resources/{id}`
+
+#### 4. Wiarygodność Danych Innowacji i Oznaczenie Wzorców Demonstracyjnych
+- **Usunięto wymyślone adresy ROPS**: Wszystkie rekordy w `backend/scripts/data/innovations.json` oraz w endpointach `/api/innovations` i `/api/match` mają zweryfikowane adresy baz innowacji ROPS Kraków (`https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie`, `innowacje-w-malopolskich-modelach`, `innowacjespoleczne.org.pl`).
+- **Oznaczenie demonstracyjności**: Każdy rekord `MatchItem` posiada teraz pola:
+  - `is_demonstrative`: `true` dla syntetycznych wzorców MVP,
+  - `source_label`: czytelna etykieta źródła pochodzenia rekordu (np. `"ROPS Kraków – Baza Innowacji Społecznych (wzorzec demonstracyjny)"`).
+- Frontend może bezpośrednio wyświetlić odznakę `[Wzorzec demonstracyjny MVP]` przy innowacjach demonstracyjnych.
+
+#### 5. Domknięcia AI i Matchmakingu
+- **Zgodność wymiarów embeddingów**: Zapytania użytkownika oraz rekordy innowacji używają zgodnego modelu wektorowego 1536D.
+- **Brak cichego fallbacku**: W środowisku produkcyjnym brak kluczy API nie maskuje błędu cichym matchmakingiem deterministycznym, lecz zwraca jawny błąd konfiguracyjny (503).
+- **Spójność planu adaptacji i budżetu**: Generator planu adaptacji uzgadnia widełki budżetowe (np. `15 000 – 25 000 PLN`), pozycje kosztowe w tabeli oraz przypisane wskaźniki KPI.
+- **Rekomendacje finansowania jako propozycje**: Wszystkie rekomendacje grantowe zwracane przez `/api/adapt` posiadają wyraźne oznaczenie `[Propozycja do weryfikacji]` oraz prawny disclaimer informujący, że ostateczna decyzja i formalne wytyczne należą do ROPS Kraków.
+
+
 
