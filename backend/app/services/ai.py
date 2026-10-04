@@ -5,6 +5,7 @@ import math
 import os
 import re
 import sys
+import time
 from functools import lru_cache
 from typing import List, Optional, Any, Dict
 import requests
@@ -12,6 +13,42 @@ import requests
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+_gemini_unavailable_until: Dict[str, float] = {}
+
+
+def _request_gemini_content(payload: dict, timeout: float) -> Optional[dict]:
+    """Try configured providers, briefly skipping models with exhausted quotas."""
+    models = dict.fromkeys([settings.GEMINI_GENERATION_MODEL, *settings.GEMINI_GENERATION_FALLBACK_MODELS.split(",")])
+    deadline = time.monotonic() + timeout
+    for model in models:
+        model = model.strip()
+        if not model or _gemini_unavailable_until.get(model, 0) > time.monotonic():
+            continue
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            model_payload = {**payload, "generationConfig": {**payload.get("generationConfig", {})}}
+            if model.startswith("gemini-3"):
+                model_payload["generationConfig"]["thinkingConfig"] = {
+                    "thinkingLevel": "low" if model.startswith(("gemini-3.7", "gemini-3.8")) else "minimal"
+                }
+            response = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                headers={"x-goog-api-key": settings.GEMINI_API_KEY}, json=model_payload, timeout=min(remaining, timeout / 2),
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if any(isinstance(candidate, dict) and candidate.get("finishReason") == "MAX_TOKENS" for candidate in data.get("candidates", [])):
+                    logger.warning("Gemini generation %s was incomplete", model)
+                    continue
+                return data
+            if response.status_code in (429, 404):
+                _gemini_unavailable_until[model] = time.monotonic() + 60
+            logger.warning("Gemini generation %s returned HTTP %s", model, response.status_code)
+        except (requests.RequestException, ValueError):
+            logger.warning("Gemini generation %s unavailable", model)
+    return None
 # Inicjalizacja klienta OpenAI tylko jeśli klucz jest ustawiony
 _openai_client = None
 
@@ -43,18 +80,19 @@ def calculate_cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float
     return dot / (norm_a * norm_b)
 
 
-def _get_gemini_embedding(text: str) -> Optional[List[float]]:
-    """Pobiera embedding z Google Gemini (gemini-embedding-2) i normalizuje do 1536D."""
+def _get_gemini_embedding(text: str, model_name: Optional[str] = None) -> Optional[List[float]]:
+    """Pobiera rzeczywisty embedding wybranego modelu, znormalizowany do 1536D."""
     if not settings.GEMINI_API_KEY:
         return None
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key={settings.GEMINI_API_KEY}"
+        model = model_name or settings.GEMINI_EMBEDDING_MODEL
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent"
         payload = {
-            "model": "models/gemini-embedding-2",
+            "model": f"models/{model}",
             "content": {"parts": [{"text": text[:2000]}]},
             "outputDimensionality": 1536,
         }
-        res = requests.post(url, json=payload, timeout=10)
+        res = requests.post(url, headers={"x-goog-api-key": settings.GEMINI_API_KEY}, json=payload, timeout=10)
         if res.status_code == 200:
             data = res.json()
             values = data.get("embedding", {}).get("values", [])
@@ -66,7 +104,7 @@ def _get_gemini_embedding(text: str) -> Optional[List[float]]:
                     values = [round(x / norm, 6) for x in values]
                 return values[:1536]
         else:
-            logger.warning("Gemini API returned status %s: %s", res.status_code, res.text)
+            logger.warning("Gemini embedding %s returned HTTP %s", model, res.status_code)
     except Exception as e:
         logger.warning("Gemini embedding error: %s", e)
     return None
@@ -103,10 +141,11 @@ def _fallback_deterministic_embedding(text: str, dim: int = 1536) -> List[float]
 def get_active_embedding_model() -> str:
     """
     Zwraca jednoznaczny identyfikator aktywnego modelu embeddingów.
-    Baza ROPS i pgvector są zsynchronizowane z przestrzenią wektorową gemini-embedding-2 (1536D).
+    Zmiana modelu wymaga zgodnych embeddingów dokumentów i zapytania.
+    Matching wylicza je z bieżącej treści, bez mieszania ze starym indeksem.
     """
     if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip():
-        return "gemini-embedding-2"
+        return settings.GEMINI_EMBEDDING_MODEL
     if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.strip():
         return "text-embedding-3-small"
     return "deterministic-test-fallback"
@@ -121,8 +160,8 @@ def _get_embedding_tuple(clean_text: str, model_name: Optional[str] = None) -> t
     """
     active_model = model_name or get_active_embedding_model()
 
-    if active_model == "gemini-embedding-2":
-        gemini_vec = _get_gemini_embedding(clean_text)
+    if active_model.startswith("gemini-embedding-"):
+        gemini_vec = _get_gemini_embedding(clean_text) if active_model == settings.GEMINI_EMBEDDING_MODEL else _get_gemini_embedding(clean_text, active_model)
         if gemini_vec:
             return tuple(gemini_vec)
         is_test_runner = (
@@ -310,6 +349,22 @@ def _build_fallback_adaptation_plan(
 4. **Dostępność i trwałość**: Potwierdzenie pełnej zgodności rozwiązań ze standardami dostępności WCAG 2.1 AA / ETR."""
 
 
+@lru_cache(maxsize=128)
+def _get_generated_gemini_plan(prompt: str) -> str:
+    """Reuse only completed real plans; failed calls never enter the cache."""
+    data = _request_gemini_content({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1400},
+    }, timeout=30)
+    if data:
+        for candidate in data.get("candidates", []):
+            parts = candidate.get("content", {}).get("parts", [])
+            full_text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+            if full_text.strip():
+                return full_text.strip()
+    raise RuntimeError("No complete Gemini adaptation plan")
+
+
 def _generate_gemini_plan(
     innovation_title: str,
     innovation_desc: str,
@@ -333,21 +388,8 @@ def _generate_gemini_plan(
             key_partners=key_partners,
         )
 
-        for model_name in ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"]:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2000},
-            }
-            res = requests.post(url, json=payload, timeout=8)
-            if res.status_code == 200:
-                data = res.json()
-                candidates = data.get("candidates", [])
-                if candidates:
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    full_text = "".join(p.get("text", "") for p in parts)
-                    if full_text.strip():
-                        return full_text.strip()
+        prompt += "\nNapisz zwięźle, maksymalnie 350 słów. Zawrzyj wszystkie sześć części planu. Finansowanie opisz jako propozycje wymagające sprawdzenia. Nie deklaruj formalnej zgodności ani zatwierdzenia ROPS."
+        return _get_generated_gemini_plan(prompt)
     except Exception as e:
         logger.warning("Gemini completion error: %s", e)
     return None
@@ -493,32 +535,25 @@ Zwróć WYŁĄCZNIE obiekt JSON o schemacie:
 TEKST UŻYTKOWNIKA:
 "{clean_query}"
 """
-        for model_name in ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"]:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
-                payload = {
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "responseMimeType": "application/json",
-                        "temperature": 0.1,
-                    },
-                }
-                res = requests.post(url, json=payload, timeout=6)
-                if res.status_code == 200:
-                    data = res.json()
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        text_part = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                        parsed = json.loads(text_part)
-                        return {
-                            "is_gibberish": bool(parsed.get("is_gibberish", False)),
-                            "is_social_problem": bool(parsed.get("is_social_problem", True)),
-                            "intent_summary": str(parsed.get("intent_summary", clean_query)),
-                            "suggested_categories": list(parsed.get("suggested_categories", [])),
-                            "advice": str(parsed.get("advice", "")),
-                        }
-            except Exception as e:
-                logger.warning("Gemini query evaluation error with model %s: %s", model_name, e)
+        try:
+            parsed = _request_gemini_content({
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"responseMimeType": "application/json", "temperature": 0.1},
+            }, timeout=6)
+            if parsed:
+                parts = parsed.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                text_part = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+                result = json.loads(text_part)
+                if isinstance(result, dict):
+                    return {
+                        "is_gibberish": result.get("is_gibberish") is True,
+                        "is_social_problem": result.get("is_social_problem") is not False,
+                        "intent_summary": str(result.get("intent_summary") or clean_query),
+                        "suggested_categories": result.get("suggested_categories") if isinstance(result.get("suggested_categories"), list) else [],
+                        "advice": str(result.get("advice") or ""),
+                    }
+        except (ValueError, IndexError):
+            logger.warning("Invalid Gemini query classification")
 
     # 2. Bezpieczny fallback (gdyby API było niedostępne offline)
     from app.services.query_validator import is_gibberish
@@ -575,30 +610,19 @@ Zwróć wyłącznie JSON w formacie:
   {{"id": "...", "why_relevant": "..."}}
 ]
 """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={settings.GEMINI_API_KEY}"
-        res = requests.post(
-            url,
-            json={
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "responseMimeType": "application/json",
-                    "temperature": 0.2,
-                },
-            },
-            timeout=4,
-        )
-        if res.status_code == 200:
-            parsed = res.json()
+        parsed = _request_gemini_content({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2},
+        }, timeout=4)
+        if parsed:
             candidates = parsed.get("candidates", [])
             if candidates:
-                text_part = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                parts = candidates[0].get("content", {}).get("parts", [])
+                text_part = "".join(p.get("text", "") for p in parts if not p.get("thought"))
                 arr = json.loads(text_part)
                 if isinstance(arr, list):
-                    return {
-                        str(item["id"]): str(item["why_relevant"])
-                        for item in arr
-                        if isinstance(item, dict) and "id" in item and "why_relevant" in item
-                    }
+                    return {str(item["id"]): str(item["why_relevant"]) for item in arr
+                            if isinstance(item, dict) and "id" in item and "why_relevant" in item}
     except Exception as e:
         logger.warning("Tailor relevance with Gemini error: %s", e)
     return {}

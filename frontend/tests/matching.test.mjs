@@ -141,7 +141,7 @@ test("awaria sieci nie uruchamia mocku i pozwala na ponowienie", async (t) => {
   assert.equal((await api.matchProblem({ problem_description: "Samotność seniorów" })).matches.length, 1);
 });
 
-test("limit 20 sekund przerywa oczekiwanie na serwer", async (t) => {
+test("skonfigurowany limit przerywa oczekiwanie na serwer", async (t) => {
   const api = apiFor(t);
   t.mock.timers.enable({ apis: ["setTimeout"] });
   t.mock.method(globalThis, "fetch", abortingFetch);

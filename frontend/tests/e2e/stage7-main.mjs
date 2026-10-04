@@ -54,8 +54,14 @@ async function login(page, who) {
     const a = await pageFor('A'), r = await pageFor('R'), b = await pageFor('B');
     await a.goto(origin);
     await a.locator('main textarea').fill(problem);
-    const matchResponse = a.waitForResponse((response) => response.url().endsWith('/api/match') && response.request().method() === 'POST');
-    await a.getByRole('button', { name: 'Znajdź rozwiązania', exact: true }).click();
+    await a.locator('main textarea').focus();
+    for (let i = 0; i < 10; i++) {
+      await a.keyboard.press('Tab');
+      if (await a.evaluate(() => document.activeElement?.textContent?.includes('Znajdź rozwiązania'))) break;
+    }
+    check('A: formularz obsługiwany klawiaturą', await a.evaluate(() => document.activeElement?.textContent?.includes('Znajdź rozwiązania')));
+    const matchResponse = a.waitForResponse((response) => response.url().endsWith('/api/match') && response.request().method() === 'POST', { timeout: 45_000 });
+    await a.keyboard.press('Enter');
     const match = await matchResponse;
     const matched = await match.json();
     check(`A: rzeczywiste dopasowania (HTTP ${match.status()})`, match.ok() && matched.matches?.length > 0);
@@ -72,11 +78,16 @@ async function login(page, who) {
       check('A: źródło i oznaczenie wzorca w dopasowaniach', await card.getByRole('link', { name: /Zobacz źródło/ }).count() > 0 && (!innovation.is_demonstrative || (await card.innerText()).includes('Wzorzec demonstracyjny')));
       await card.locator('summary').click();
       await card.getByLabel('Kontekst Twojej instytucji (wymagane)').fill('Gmina wiejska, CUS, świetlica i wolontariusze. Pilotaż przez 3 miesiące, budżet 20 tys. zł.');
-      const response = a.waitForResponse((res) => res.url().endsWith('/api/adapt'));
+      const response = a.waitForResponse((res) => res.url().endsWith('/api/adapt'), { timeout: 45_000 });
       await card.getByRole('button', { name: 'Wygeneruj plan adaptacji' }).click();
       const generated = await response; const plan = await generated.json();
       await card.getByText('Plan adaptacji jest gotowy.', { exact: true }).waitFor();
-      check(`A: rzeczywisty plan i pochodzenie ${plan.generation_source}`, generated.ok() && plan.adaptation_plan?.length > 100 && (await card.innerText()).includes(plan.is_ai_generated ? 'Treść wygenerowana przez AI' : 'Szablon awaryjny, nie AI'));
+      check(`A: rzeczywisty plan i pochodzenie ${plan.generation_source}`, generated.ok() && plan.is_ai_generated === true && plan.generation_source !== 'template_fallback' && plan.adaptation_plan?.length > 100 && (await card.innerText()).includes(plan.is_ai_generated ? 'Treść wygenerowana przez AI' : 'Szablon awaryjny, nie AI'));
+      await a.setViewportSize({ width: 375, height: 850 });
+      const enlarged = await a.addStyleTag({ content: 'html { font-size: 32px !important }' });
+      check('A: dopasowania i plan 375 px, tekst 200%, bez poziomego przewijania', await a.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
+      await enlarged.evaluate((element) => element.remove());
+      await a.setViewportSize({ width: 1280, height: 850 });
     } else {
       const plan = await api('POST', '/api/adapt', null, { innovation_title: innovation.title, innovation_description: innovation.description, municipality_context: 'Gmina wiejska, CUS i wolontariusze, budżet 20 tys. zł, pilotaż 3 miesiące.' });
       check(`A: niezależna próba API planu (${plan.data.generation_source || plan.status})`, plan.status === 200 && plan.data.adaptation_plan?.length > 100 && typeof plan.data.is_ai_generated === 'boolean');
@@ -102,6 +113,7 @@ async function login(page, who) {
     await a.getByRole('link', { name: /Zobacz zapisaną fiszkę/ }).waitFor();
     const submission = (await clients.A.from('submissions').select('id').eq('title', title).single()).data;
     assert.ok(submission?.id, 'Brak fiszki w Supabase');
+    if (!created.some(([table, id]) => table === 'submissions' && id === submission.id)) created.push(['submissions', submission.id, 'title']);
     await a.goto(origin + '/moje-zgloszenia/' + submission.id); await a.reload();
     await a.getByRole('heading', { name: title, exact: true }).waitFor(); check('A: fiszka trwała po F5', true);
     await r.goto(origin + '/rops'); await r.getByRole('link', { name: title, exact: true }).waitFor();

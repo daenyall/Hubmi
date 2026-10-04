@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.db.supabase import get_supabase_client
 from app.services.ai import get_active_embedding_model, create_embedding
+from app.core.config import settings
 
 client = TestClient(app)
 
@@ -14,7 +15,7 @@ class TestAuditFixesPoints2349:
     """
     Kompleksowy zestaw testów weryfikujący poprawki punktów 2, 3, 4 i 9 audytu:
     - Punkt 2: Publikacja i widoczność (status=sprawdzone, brak obchodzenia parametrem, ukryte szkice)
-    - Punkt 3: Jednolity model embeddingów (gemini-embedding-2, brak cichych fallbacków)
+    - Punkt 3: Jednolity konfigurowalny model embeddingów, brak cichych fallbacków
     - Punkt 4: Proweniencja Middleman AI (is_ai_generated, generation_source, disclaimer, dynamiczny plan)
     - Punkt 9: Tester (brak mutacji statusu zgłoszenia przy dodaniu opinii, walidacja powiązania)
     """
@@ -121,9 +122,9 @@ class TestAuditFixesPoints2349:
     # =========================================================================
 
     def test_single_active_embedding_model(self):
-        """Aktywnym modelem wektorowym jest wyłącznie gemini-embedding-2."""
+        """Zapytania i dokumenty używają wybranego modelu Gemini."""
         active_model = get_active_embedding_model()
-        assert active_model == "gemini-embedding-2"
+        assert active_model == settings.GEMINI_EMBEDDING_MODEL
 
     def test_embedding_vector_dimension_is_1536(self):
         """Wektor embeddingu ma ściśle 1536 wymiarów i jest znormalizowany."""

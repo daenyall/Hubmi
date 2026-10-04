@@ -297,7 +297,7 @@ function AdminPanelBody() {
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" aria-expanded={editing === item.id} onClick={() => { setEditing(editing === item.id ? null : item.id); setNotice(""); }}
                 className="h-auto min-h-11 whitespace-normal px-[16px] py-2">{editing === item.id ? "Zamknij edycję" : "Edytuj"}</Button>
-              <PublishAction item={item} onPublished={(record) => { setNotice(`Opublikowano „${record.title}” ze statusem „${PUBLISHED_STATUS}”.`); refresh(); }} />
+              {editing !== item.id && <PublishAction item={item} onPublished={(record) => { setNotice(`Opublikowano „${record.title}” ze statusem „${PUBLISHED_STATUS}”.`); refresh(); }} />}
             </div>
             {editing === item.id && <InnovationForm key={item.id} heading={`Edycja: ${item.title}`} initial={draftFromRecord(item)} submitLabel="Zapisz zmiany"
               onCancel={() => setEditing(null)}
@@ -305,6 +305,7 @@ function AdminPanelBody() {
                 const result = await createKnowledgeAdminService().update(item.id, draft, signal);
                 if (result.confirmed) {
                   setNotice(`Zapisano zmiany w „${result.record.title}” (identyfikator: ${result.record.id}). Zapis potwierdzony ponownym odczytem.`);
+                  setEditing(null);
                   refresh();
                 }
                 return result;

@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.post("/adapt", response_model=AdaptResponse)
 @router.post("/middleman/adapt", response_model=AdaptResponse)
-async def adapt_innovation(request: AdaptRequest):
+def adapt_innovation(request: AdaptRequest):
     """
     Moduł Middleman Innowacji (Asystent AI):
     Dostosowuje wybraną innowację społeczną ROPS do lokalnych uwarunkowań,

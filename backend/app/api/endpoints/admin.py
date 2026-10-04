@@ -343,7 +343,7 @@ async def list_admin_innovations(
 
 
 @router.post("/innovations", response_model=MatchItem, status_code=status.HTTP_201_CREATED)
-async def create_admin_innovation(
+def create_admin_innovation(
     payload: InnovationCreate,
     admin: UserSession = Depends(require_rops_admin),
 ):
@@ -365,7 +365,10 @@ async def create_admin_innovation(
         f"Dlaczego warto: {sanitize_text(payload.why_relevant or '')}. "
         f"Opis: {sanitize_text(payload.description)}"
     )
-    embedding = create_embedding(semantic_text)
+    try:
+        embedding = create_embedding(semantic_text)
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Usługa AI jest chwilowo niedostępna. Innowacja nie została zapisana. Spróbuj ponownie.")
 
     row = {
         "id": inv_id,
@@ -436,7 +439,7 @@ async def get_admin_innovation_by_id(
 
 
 @router.put("/innovations/{innovation_id}", response_model=MatchItem)
-async def update_admin_innovation(
+def update_admin_innovation(
     innovation_id: str,
     payload: InnovationUpdate,
     admin: UserSession = Depends(require_rops_admin),
@@ -482,7 +485,10 @@ async def update_admin_innovation(
         new_why = update_data.get("why_relevant", curr.get("why_relevant", ""))
         new_desc = update_data.get("description", curr.get("description", ""))
         semantic_text = f"{new_title}. Kategoria: {new_cat}. Grupa docelowa: {new_tg}. Dlaczego warto: {new_why}. Opis: {new_desc}"
-        update_data["embedding"] = create_embedding(semantic_text)
+        try:
+            update_data["embedding"] = create_embedding(semantic_text)
+        except RuntimeError:
+            raise HTTPException(status_code=503, detail="Usługa AI jest chwilowo niedostępna. Zmiany nie zostały zapisane. Spróbuj ponownie.")
 
     try:
         res = supabase.table("innovations").update(update_data).eq("id", innovation_id).execute()
@@ -542,4 +548,3 @@ async def publish_admin_innovation(
     except Exception as e:
         logger.error("Błąd publikacji innowacji %s: %s", innovation_id, e)
         raise HTTPException(status_code=500, detail=safe_error_message("publikacja innowacji"))
-
