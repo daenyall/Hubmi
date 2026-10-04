@@ -46,7 +46,7 @@ class SlideDeck:
     def __init__(self, filename):
         self.filename = filename
         self.c = canvas.Canvas(filename, pagesize=(WIDTH, HEIGHT))
-        self.total_slides = 5
+        self.total_slides = 6
 
     def start_slide(self, title, category_tag, slide_num):
         # Tło
@@ -286,9 +286,65 @@ def build_presentation(output_pdf):
     deck.end_slide()
 
     # =========================================================================
-    # SLAJD 3: SZCZEGÓŁY AI — MATCHMAKING I MIDDLEMAN
+    # SLAJD 3: WYZWANIE I ODBIORCY — JAK ZNALEŹĆ ROZWIĄZANIE DLA SWOJEJ SPOŁECZNOŚCI
     # =========================================================================
-    deck.start_slide("Silnik AI: Wyszukiwanie Semantyczne i Asystent Adaptacji", "Technologia & AI", 3)
+    deck.start_slide("Jak znaleźć rozwiązanie dla swojej społeczności?", "Wyzwanie & Grupy Docelowe", 3)
+
+    # Karta lewa: Dorobek ROPS i istota wyzwania
+    deck.draw_card(40, 50, 440, 395, bg_color=BG_CARD, border_color=BORDER)
+
+    # Akcent ozdobny (zielona kreska)
+    deck.c.setFillColor(HexColor("#34D399"))
+    deck.c.roundRect(65, 385, 45, 4, 2, fill=1, stroke=0)
+
+    # Duży, wyrazisty nagłówek
+    deck.c.setFont(FONT_BOLD, 28)
+    deck.c.setFillColor(PRIMARY_DARK)
+    deck.c.drawString(65, 340, "ROPS ma dorobek")
+    deck.c.drawString(65, 304, "blisko 200 innowacji")
+    deck.c.drawString(65, 268, "społecznych.")
+
+    # Opis wyzwania
+    desc_challenge = "Osoba szukająca wsparcia musi odnaleźć odpowiednie rozwiązanie, ocenić jego przydatność i zaplanować wdrożenie w lokalnych warunkach."
+    deck.draw_multiline(65, 205, desc_challenge, font=FONT_REGULAR, size=12, color=TEXT_MAIN, width_chars=40, line_height=20)
+
+    # Przypis źródłowy na dole karty
+    deck.c.setFont(FONT_REGULAR, 8.5)
+    deck.c.setFillColor(TEXT_MUTED)
+    deck.c.drawString(65, 75, "Liczba dotyczy dorobku ROPS, nie liczby rekordów w prototypie Splot.")
+
+    # Karta prawa: "Dla kogo?" (Grupy docelowe)
+    deck.draw_card(500, 50, 420, 395, bg_color=PRIMARY_LIGHT, border_color=PRIMARY)
+
+    deck.c.setFont(FONT_BOLD, 26)
+    deck.c.setFillColor(PRIMARY_DARK)
+    deck.c.drawString(530, 390, "Dla kogo?")
+
+    target_groups = [
+        ("Mieszkańcy", "Zgłaszanie potrzeb i poszukiwanie wsparcia."),
+        ("NGO, CUS i OPS", "Wybór i testowanie rozwiązań."),
+        ("Samorządy", "Diagnoza potrzeb i przygotowanie wdrożeń."),
+        ("ROPS", "Obsługa zgłoszeń, komunikacja i zarządzanie wiedzą.")
+    ]
+
+    y_sub = 300
+    for title, desc in target_groups:
+        deck.draw_card(530, y_sub, 360, 54, bg_color=BG_CARD, border_color=BORDER)
+        deck.draw_check_icon(545, y_sub + 27, size=11, color=PRIMARY)
+        deck.c.setFont(FONT_BOLD, 10.5)
+        deck.c.setFillColor(PRIMARY_DARK)
+        deck.c.drawString(565, y_sub + 33, title)
+        deck.c.setFont(FONT_REGULAR, 8.5)
+        deck.c.setFillColor(TEXT_MUTED)
+        deck.c.drawString(565, y_sub + 16, desc)
+        y_sub -= 66
+
+    deck.end_slide()
+
+    # =========================================================================
+    # SLAJD 4: SZCZEGÓŁY AI — MATCHMAKING I MIDDLEMAN
+    # =========================================================================
+    deck.start_slide("Silnik AI: Wyszukiwanie Semantyczne i Asystent Adaptacji", "Technologia & AI", 4)
 
     # Karta lewa: Matchmaking wektorowy
     deck.draw_card(40, 50, 430, 395)
@@ -342,9 +398,9 @@ def build_presentation(output_pdf):
     deck.end_slide()
 
     # =========================================================================
-    # SLAJD 4: DOSTĘPNOŚĆ CYFROWA (WCAG 2.1 AA) I GENERATOR WNIOSKÓW
+    # SLAJD 5: DOSTĘPNOŚĆ CYFROWA (WCAG 2.1 AA) I GENERATOR WNIOSKÓW
     # =========================================================================
-    deck.start_slide("Dostępność Cyfrowa (WCAG 2.1 AA) i Generator Wniosków FERS", "Dostępność & Finansowanie", 4)
+    deck.start_slide("Dostępność Cyfrowa (WCAG 2.1 AA) i Generator Wniosków FERS", "Dostępność & Finansowanie", 5)
 
     # Lewa kolumna: Dostępność Cyfrowa
     deck.draw_card(40, 50, 430, 395)
@@ -398,9 +454,9 @@ def build_presentation(output_pdf):
     deck.end_slide()
 
     # =========================================================================
-    # SLAJD 5: POTENCJAŁ WDROŻENIOWY, TCO I BEZPIECZEŃSTWO
+    # SLAJD 6: POTENCJAŁ WDROŻENIOWY, TCO I BEZPIECZEŃSTWO
     # =========================================================================
-    deck.start_slide("Potencjał Wdrożeniowy: Realistyczny Kosztorys TCO i Bezpieczeństwo", "Wdrożenie & Budżet", 5)
+    deck.start_slide("Potencjał Wdrożeniowy: Realistyczny Kosztorys TCO i Bezpieczeństwo", "Wdrożenie & Budżet", 6)
 
     # Lewa strona: TCO
     deck.draw_card(40, 50, 470, 395)
