@@ -19,6 +19,7 @@ export function KnowledgeCard({ item }: { item: KnowledgeItem }) {
         {item.source_url ? <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4">Zobacz źródło<span className="sr-only">: {item.title} (otwiera się w nowej karcie)</span></a>
           : <p className="text-sm text-muted-foreground">{item.source_invalid ? "Link źródłowy jest niedostępny — niepoprawny adres." : "Brak źródła."}</p>}
         {canLink && <Link href={`/kreator?innowacja=${encodeURIComponent(item.id)}`} aria-label={`Zgłoś pomysł powiązany z: ${item.title}`} className="inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4">Zgłoś pomysł</Link>}
+        {canLink && <Link href={`/tester?innowacja=${encodeURIComponent(item.id)}`} aria-label={`Przetestuj lub oceń: ${item.title}`} className="inline-flex min-h-11 items-center rounded-sm font-semibold text-primary underline underline-offset-4">Przetestuj u siebie</Link>}
       </CardFooter>
     </Card>
   </article>;
