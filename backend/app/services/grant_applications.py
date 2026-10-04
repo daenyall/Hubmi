@@ -1,4 +1,5 @@
 import uuid
+import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any, Tuple
 from fastapi import HTTPException, status
@@ -14,32 +15,23 @@ from app.models.schemas import (
     GrantApplicationExportResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 # Domyślny nabór demonstracyjny na bazie Załącznika nr 3 ROPS Kraków
 DEFAULT_DEMO_CALL_ID = "c0000000-0000-0000-0000-000000000001"
-DEFAULT_DEMO_CALL: Dict[str, Any] = {
-    "id": DEFAULT_DEMO_CALL_ID,
-    "name": "Inkubator Włączenia Społecznego 2.0 – Nabór Pomysłów na Innowacje Społeczne (ROPS Kraków)",
-    "template_name": "za._3._Formularz_aplikacyjny_wzor.pdf",
-    "template_version": "1.0",
-    "status": "demonstracyjny",
-    "description": (
-        "Oficjalny wzór naboru grantowego na innowacje społeczne (Działanie 5.1 FERS 2021-2027) "
-        "organizowany przez Regionalny Ośrodek Polityki Społecznej w Krakowie. "
-        "Nabór demonstracyjny na bazie oficjalnego wzoru umożliwiający przygotowanie, "
-        "weryfikację budżetu i eksport gotowego wniosku."
-    ),
-    "max_grant_amount": 100000.00,
-    "max_prep_months": 3,
-    "max_test_months": 9,
-    "created_at": "2026-10-01T00:00:00+00:00",
-    "updated_at": "2026-10-01T00:00:00+00:00",
-}
 
-# Pamięciowy bufor demonstracyjny dla testów jednostkowych i środowisk przed wykonaniem migracji 10
-_memory_calls_store: Dict[str, Dict[str, Any]] = {
-    DEFAULT_DEMO_CALL_ID: dict(DEFAULT_DEMO_CALL)
-}
-_memory_applications_store: Dict[str, Dict[str, Any]] = {}
+
+def _get_active_supabase():
+    """
+    Pobiera klienta Supabase lub zgłasza jawny błąd 503 w przypadku braku konfiguracji.
+    """
+    sb = get_supabase_client()
+    if not sb:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Baza danych Supabase jest niedostępna lub nieskonfigurowana.",
+        )
+    return sb
 
 
 def _to_dict(data: Any) -> Dict[str, Any]:
@@ -133,40 +125,49 @@ def _map_application_to_response(
 # ==============================================================================
 
 def list_grant_calls() -> List[GrantCallResponse]:
-    """Pobiera listę skonfigurowanych naborów grantowych."""
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = supabase.table("grant_calls").select("*").order("created_at", desc=False).execute()
-            rows = _to_dict_list(res.data)
-            if rows:
-                return [
-                    GrantCallResponse(
-                        id=str(r.get("id")),
-                        name=str(r.get("name")),
-                        template_name=str(r.get("template_name", "za._3._Formularz_aplikacyjny_wzor.pdf")),
-                        template_version=str(r.get("template_version", "1.0")),
-                        status=str(r.get("status", "demonstracyjny")),
-                        description=r.get("description"),
-                        max_grant_amount=float(r.get("max_grant_amount", 100000.0)),
-                        max_prep_months=int(r.get("max_prep_months", 3)),
-                        max_test_months=int(r.get("max_test_months", 9)),
-                        created_at=r.get("created_at"),
-                        updated_at=r.get("updated_at"),
-                    )
-                    for r in rows
-                ]
-        except Exception:
-            pass
+    """Pobiera listę skonfigurowanych naborów grantowych wyłącznie z bazy danych."""
+    sb = _get_active_supabase()
+    try:
+        res = sb.table("grant_calls").select("*").order("created_at", desc=False).execute()
+        rows = _to_dict_list(res.data) if res and res.data else []
+        return [
+            GrantCallResponse(
+                id=str(r.get("id")),
+                name=str(r.get("name")),
+                template_name=str(r.get("template_name", "za._3._Formularz_aplikacyjny_wzor.pdf")),
+                template_version=str(r.get("template_version", "1.0")),
+                status=str(r.get("status", "demonstracyjny")),
+                description=r.get("description"),
+                max_grant_amount=float(r.get("max_grant_amount", 100000.0)),
+                max_prep_months=int(r.get("max_prep_months", 3)),
+                max_test_months=int(r.get("max_test_months", 9)),
+                created_at=r.get("created_at"),
+                updated_at=r.get("updated_at"),
+            )
+            for r in rows
+        ]
+    except Exception as e:
+        logger.error("Błąd odczytu naborów z Supabase: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych naborów grantowych.",
+        )
 
-    # Fallback na pamięciowy rejestr naborów
-    return [
-        GrantCallResponse(
+
+def get_grant_call_by_id(call_id: str) -> Optional[GrantCallResponse]:
+    """Pobiera szczegóły konfiguracji wybranego naboru z bazy danych."""
+    sb = _get_active_supabase()
+    try:
+        res = sb.table("grant_calls").select("*").eq("id", call_id).limit(1).execute()
+        r = _to_dict(res.data) if res and res.data else None
+        if not r or not r.get("id"):
+            return None
+        return GrantCallResponse(
             id=str(r.get("id")),
             name=str(r.get("name")),
-            template_name=str(r.get("template_name")),
-            template_version=str(r.get("template_version")),
-            status=str(r.get("status")),
+            template_name=str(r.get("template_name", "za._3._Formularz_aplikacyjny_wzor.pdf")),
+            template_version=str(r.get("template_version", "1.0")),
+            status=str(r.get("status", "demonstracyjny")),
             description=r.get("description"),
             max_grant_amount=float(r.get("max_grant_amount", 100000.0)),
             max_prep_months=int(r.get("max_prep_months", 3)),
@@ -174,51 +175,12 @@ def list_grant_calls() -> List[GrantCallResponse]:
             created_at=r.get("created_at"),
             updated_at=r.get("updated_at"),
         )
-        for r in _memory_calls_store.values()
-    ]
-
-
-def get_grant_call_by_id(call_id: str) -> Optional[GrantCallResponse]:
-    """Pobiera szczegóły konfiguracji wybranego naboru."""
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = supabase.table("grant_calls").select("*").eq("id", call_id).limit(1).execute()
-            r = _to_dict(res.data)
-            if r:
-                return GrantCallResponse(
-                    id=str(r.get("id")),
-                    name=str(r.get("name")),
-                    template_name=str(r.get("template_name", "za._3._Formularz_aplikacyjny_wzor.pdf")),
-                    template_version=str(r.get("template_version", "1.0")),
-                    status=str(r.get("status", "demonstracyjny")),
-                    description=r.get("description"),
-                    max_grant_amount=float(r.get("max_grant_amount", 100000.0)),
-                    max_prep_months=int(r.get("max_prep_months", 3)),
-                    max_test_months=int(r.get("max_test_months", 9)),
-                    created_at=r.get("created_at"),
-                    updated_at=r.get("updated_at"),
-                )
-        except Exception:
-            pass
-
-    # Fallback
-    c = _memory_calls_store.get(call_id)
-    if c:
-        return GrantCallResponse(
-            id=str(c.get("id")),
-            name=str(c.get("name")),
-            template_name=str(c.get("template_name")),
-            template_version=str(c.get("template_version")),
-            status=str(c.get("status")),
-            description=c.get("description"),
-            max_grant_amount=float(c.get("max_grant_amount", 100000.0)),
-            max_prep_months=int(c.get("max_prep_months", 3)),
-            max_test_months=int(c.get("max_test_months", 9)),
-            created_at=c.get("created_at"),
-            updated_at=c.get("updated_at"),
+    except Exception as e:
+        logger.error("Błąd odczytu naboru %s z Supabase: %s", call_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych naboru grantowego.",
         )
-    return None
 
 
 def update_grant_call_status(call_id: str, new_status: str) -> GrantCallResponse:
@@ -231,57 +193,49 @@ def update_grant_call_status(call_id: str, new_status: str) -> GrantCallResponse
             detail=f"Niedozwolony stan naboru: '{new_status}'. Dozwolone to: {sorted(list(allowed_statuses))}.",
         )
 
-    now_str = datetime.now(timezone.utc).isoformat()
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("grant_calls")
-                .update({"status": cleaned_status, "updated_at": now_str})
-                .eq("id", call_id)
-                .execute()
-            )
-            r = _to_dict(res.data)
-            if r:
-                return GrantCallResponse(
-                    id=str(r.get("id")),
-                    name=str(r.get("name")),
-                    template_name=str(r.get("template_name")),
-                    template_version=str(r.get("template_version")),
-                    status=str(r.get("status")),
-                    description=r.get("description"),
-                    max_grant_amount=float(r.get("max_grant_amount", 100000.0)),
-                    max_prep_months=int(r.get("max_prep_months", 3)),
-                    max_test_months=int(r.get("max_test_months", 9)),
-                    created_at=r.get("created_at"),
-                    updated_at=r.get("updated_at"),
-                )
-        except Exception:
-            pass
-
-    # Pamięć podręczna fallback
-    if call_id in _memory_calls_store:
-        _memory_calls_store[call_id]["status"] = cleaned_status
-        _memory_calls_store[call_id]["updated_at"] = now_str
-        c = _memory_calls_store[call_id]
-        return GrantCallResponse(
-            id=str(c.get("id")),
-            name=str(c.get("name")),
-            template_name=str(c.get("template_name")),
-            template_version=str(c.get("template_version")),
-            status=str(c.get("status")),
-            description=c.get("description"),
-            max_grant_amount=float(c.get("max_grant_amount", 100000.0)),
-            max_prep_months=int(c.get("max_prep_months", 3)),
-            max_test_months=int(c.get("max_test_months", 9)),
-            created_at=c.get("created_at"),
-            updated_at=c.get("updated_at"),
+    existing = get_grant_call_by_id(call_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Nabór o ID '{call_id}' nie istnieje.",
         )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Nabór o ID '{call_id}' nie istnieje.",
-    )
+    now_str = datetime.now(timezone.utc).isoformat()
+    sb = _get_active_supabase()
+    try:
+        res = (
+            sb.table("grant_calls")
+            .update({"status": cleaned_status, "updated_at": now_str})
+            .eq("id", call_id)
+            .execute()
+        )
+        r = _to_dict(res.data) if res and res.data else None
+        if not r or not r.get("id"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Baza danych nie potwierdziła aktualizacji naboru.",
+            )
+        return GrantCallResponse(
+            id=str(r.get("id")),
+            name=str(r.get("name")),
+            template_name=str(r.get("template_name")),
+            template_version=str(r.get("template_version")),
+            status=str(r.get("status")),
+            description=r.get("description"),
+            max_grant_amount=float(r.get("max_grant_amount", 100000.0)),
+            max_prep_months=int(r.get("max_prep_months", 3)),
+            max_test_months=int(r.get("max_test_months", 9)),
+            created_at=r.get("created_at"),
+            updated_at=r.get("updated_at"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Błąd aktualizacji naboru %s w Supabase: %s", call_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd podczas trwałej aktualizacji naboru grantowego.",
+        )
 
 
 # ==============================================================================
@@ -335,86 +289,65 @@ def create_grant_application(
         "updated_at": now_str,
     }
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = supabase.table("grant_applications").insert(row_data).execute()
-            inserted = _to_dict(res.data)
-            if inserted:
-                return _map_application_to_response(inserted, call_info=call.model_dump())
-        except Exception:
-            pass
+    sb = _get_active_supabase()
+    try:
+        res = sb.table("grant_applications").insert(row_data).execute()
+        inserted = _to_dict(res.data) if res and res.data else None
+        if not inserted:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Baza danych nie potwierdziła trwałego zapisu szkicu wniosku.",
+            )
+        return _map_application_to_response(inserted, call_info=call.model_dump())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Błąd trwałego zapisu wniosku do Supabase: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd trwałego zapisu wniosku grantowego.",
+        )
 
-    # Pamięć fallback
-    _memory_applications_store[app_id] = dict(row_data)
-    return _map_application_to_response(row_data, call_info=call.model_dump())
 
 def list_user_applications(user_id: str) -> List[GrantApplicationResponse]:
-    """
-    Pobiera wszystkie wnioski danego autora (pełna izolacja danych).
-    """
-    seen_ids = set()
-    results: List[GrantApplicationResponse] = []
-
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("grant_applications")
-                .select("*, grant_calls(name, status)")
-                .eq("user_id", user_id)
-                .order("created_at", desc=True)
-                .execute()
-            )
-            rows = _to_dict_list(res.data)
-            for r in rows:
-                if r.get("id"):
-                    seen_ids.add(r["id"])
-                    results.append(_map_application_to_response(r))
-        except Exception:
-            pass
-
-    # Pamięć fallback / uzupełnienie
-    user_rows = [
-        r for r in _memory_applications_store.values() if r.get("user_id") == user_id
-    ]
-    user_rows.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
-    for r in user_rows:
-        rid = str(r.get("id") or "")
-        if rid and rid not in seen_ids:
-            seen_ids.add(rid)
-            cid = str(r.get("call_id") or "")
-            c_info = _memory_calls_store.get(cid) if cid else None
-            results.append(_map_application_to_response(r, call_info=c_info))
-    return results
+    """Pobiera wszystkie wnioski danego autora (pełna izolacja danych)."""
+    sb = _get_active_supabase()
+    try:
+        res = (
+            sb.table("grant_applications")
+            .select("*, grant_calls(name, status)")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        rows = _to_dict_list(res.data) if res and res.data else []
+        return [_map_application_to_response(r) for r in rows]
+    except Exception as e:
+        logger.error("Błąd odczytu wniosków użytkownika %s z Supabase: %s", user_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych podczas pobierania wniosków.",
+        )
 
 
 def get_application_by_id_raw(application_id: str) -> Optional[Dict[str, Any]]:
-    """Pobiera surowy rekord wniosku z bazy lub pamięci."""
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("grant_applications")
-                .select("*, grant_calls(name, status)")
-                .eq("id", application_id)
-                .limit(1)
-                .execute()
-            )
-            r = _to_dict(res.data)
-            if r:
-                return r
-        except Exception:
-            pass
-
-    if application_id in _memory_applications_store:
-        r = dict(_memory_applications_store[application_id])
-        cid = str(r.get("call_id") or "")
-        c = _memory_calls_store.get(cid) if cid else None
-        if c:
-            r["grant_calls"] = {"name": c.get("name"), "status": c.get("status")}
-        return r
-    return None
+    """Pobiera surowy rekord wniosku wyłącznie z trwałej bazy danych."""
+    sb = _get_active_supabase()
+    try:
+        res = (
+            sb.table("grant_applications")
+            .select("*, grant_calls(name, status)")
+            .eq("id", application_id)
+            .limit(1)
+            .execute()
+        )
+        return _to_dict(res.data) if res and res.data else None
+    except Exception as e:
+        logger.error("Błąd odczytu wniosku %s z Supabase: %s", application_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych podczas odczytu wniosku.",
+        )
 
 
 def get_application_for_author(
@@ -499,30 +432,29 @@ def update_draft_application(
     if update_data.declarations is not None:
         update_dict["declarations"] = update_data.declarations
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("grant_applications")
-                .update(update_dict)
-                .eq("id", application_id)
-                .execute()
+    sb = _get_active_supabase()
+    try:
+        res = (
+            sb.table("grant_applications")
+            .update(update_dict)
+            .eq("id", application_id)
+            .execute()
+        )
+        updated = _to_dict(res.data) if res and res.data else None
+        if not updated or not updated.get("id"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Baza danych nie potwierdziła trwałego zapisu roboczego wniosku grantowego.",
             )
-            inserted = _to_dict(res.data)
-            if inserted:
-                return _map_application_to_response(inserted)
-        except Exception:
-            pass
-
-    # Pamięć fallback
-    if application_id in _memory_applications_store:
-        _memory_applications_store[application_id].update(update_dict)
-        return _map_application_to_response(_memory_applications_store[application_id])
-
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Błąd trwałego zapisu roboczego wniosku grantowego.",
-    )
+        return _map_application_to_response(updated)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Błąd trwałego zapisu roboczego wniosku %s do Supabase: %s", application_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd trwałego zapisu roboczego wniosku grantowego.",
+        )
 
 
 def submit_grant_application(application_id: str, user_id: str) -> GrantApplicationResponse:
@@ -654,10 +586,23 @@ def submit_grant_application(application_id: str, user_id: str) -> GrantApplicat
             f"Wyrównaj kosztorys przed złożeniem wniosku."
         )
 
-    # 4. Świadome potwierdzenie oświadczeń
+    # 4. Świadome potwierdzenie oświadczeń (zarówno all_confirmed jak i poszczególne klucze)
     declarations = row.get("declarations") or {}
     all_confirmed = bool(declarations.get("all_confirmed", False))
-    if not all_confirmed:
+    required_declaration_keys = [
+        "criminal_liability",
+        "no_double_funding",
+        "accept_procedures",
+        "no_fees",
+        "accessibility_dnsh",
+        "gdpr",
+    ]
+    individual_confirmed = (
+        all(bool(declarations.get(k)) for k in required_declaration_keys)
+        if any(k in declarations for k in required_declaration_keys)
+        else False
+    )
+    if not (all_confirmed or individual_confirmed):
         errors.append(
             "Pkt 12: Wymagane jest świadome potwierdzenie wszystkich oświadczeń prawnych (w tym odpowiedzialności karnej "
             "z art. 297 kk, braku podwójnego finansowania i akceptacji procedur naboru)."
@@ -680,32 +625,29 @@ def submit_grant_application(application_id: str, user_id: str) -> GrantApplicat
         "updated_at": now_str,
     }
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("grant_applications")
-                .update(update_payload)
-                .eq("id", application_id)
-                .execute()
-            )
-            inserted = _to_dict(res.data)
-            if inserted:
-                return _map_application_to_response(inserted, call_info=call.model_dump())
-        except Exception:
-            pass
-
-    # Pamięć fallback
-    if application_id in _memory_applications_store:
-        _memory_applications_store[application_id].update(update_payload)
-        return _map_application_to_response(
-            _memory_applications_store[application_id], call_info=call.model_dump()
+    sb = _get_active_supabase()
+    try:
+        res = (
+            sb.table("grant_applications")
+            .update(update_payload)
+            .eq("id", application_id)
+            .execute()
         )
-
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Błąd trwałego zapisu złożenia wniosku grantowego.",
-    )
+        updated = _to_dict(res.data) if res and res.data else None
+        if not updated or not updated.get("id"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Baza danych nie potwierdziła trwałego złożenia wniosku grantowego.",
+            )
+        return _map_application_to_response(updated, call_info=call.model_dump())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Błąd trwałego złożenia wniosku %s w Supabase: %s", application_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd trwałego zapisu złożenia wniosku grantowego.",
+        )
 
 
 # ==============================================================================
@@ -720,16 +662,12 @@ def export_grant_application(
     oraz wydruku, zgodnie z układem Załącznika nr 3 do Ogłoszenia ROPS Kraków.
     """
     app_obj = get_application_for_author(application_id, user_id, is_admin=is_admin)
-    call = get_grant_call_by_id(app_obj.call_id) or GrantCallResponse(
-        id=app_obj.call_id,
-        name="Inkubator Włączenia Społecznego 2.0 (ROPS Kraków)",
-        template_name="za._3._Formularz_aplikacyjny_wzor.pdf",
-        template_version="1.0",
-        status="demonstracyjny",
-        max_grant_amount=100000.0,
-        max_prep_months=3,
-        max_test_months=9,
-    )
+    call = get_grant_call_by_id(app_obj.call_id)
+    if not call:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Nabór grantowy o ID '{app_obj.call_id}' powiązany z wnioskiem nie został odnaleziony.",
+        )
 
     # Formatowanie danych wnioskodawcy
     app_data = app_obj.applicant_data
@@ -778,7 +716,17 @@ def export_grant_application(
     decl = app_obj.declarations
     all_conf_str = "POTWIERDZONE ŚWIADOMIE (TAK)" if decl.get("all_confirmed") else "BRAK POTWIERDZENIA (NIE)"
 
-    doc_text = f"""================================================================================
+    demo_banner = ""
+    if call.status != "otwarty":
+        demo_banner = (
+            "================================================================================\n"
+            "UWAGA: DOKUMENT ROBOCZY / WZÓR DEMONSTRACYJNY\n"
+            f"STAN NABORU: {call.status.upper()} (Nabór nie jest w stanie otwartym)\n"
+            "Niniejszy dokument nie stanowi oficjalnego potwierdzenia przyznania dotacji ROPS.\n"
+            "================================================================================\n\n"
+        )
+
+    doc_text = f"""{demo_banner}================================================================================
 ZAŁĄCZNIK NR 3 DO OGŁOSZENIA
 FORMULARZ APLIKACYJNY – INKUBATOR WŁĄCZENIA SPOŁECZNEGO 2.0
 Działanie 5.1 Innowacje społeczne – Program FERS 2021-2027
@@ -888,47 +836,24 @@ def admin_list_applications(
     limit: int = 50,
 ) -> List[GrantApplicationResponse]:
     """
-    Pobiera wszystkie wnioski grantowe dla Administratora ROPS Kraków z filtrami.
+    Pobiera wszystkie wnioski grantowe dla Administratora ROPS Kraków z filtrami wyłącznie z Supabase.
     """
-    seen_ids = set()
-    results: List[GrantApplicationResponse] = []
-
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            query = supabase.table("grant_applications").select("*, grant_calls(name, status)")
-            if call_id:
-                query = query.eq("call_id", call_id)
-            if status_filter:
-                query = query.eq("status", status_filter)
-            res = query.order("created_at", desc=True).limit(limit).execute()
-            rows = _to_dict_list(res.data)
-            for r in rows:
-                if r.get("id"):
-                    seen_ids.add(r["id"])
-                    results.append(_map_application_to_response(r))
-        except Exception:
-            pass
-
-    # Pamięć fallback / uzupełnienie
-    rows = list(_memory_applications_store.values())
-    if call_id:
-        rows = [r for r in rows if r.get("call_id") == call_id]
-    if status_filter:
-        rows = [r for r in rows if r.get("status") == status_filter]
-    rows.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
-
-    for r in rows:
-        rid = str(r.get("id") or "")
-        if rid and rid not in seen_ids:
-            seen_ids.add(rid)
-            cid = str(r.get("call_id") or "")
-            c_info = _memory_calls_store.get(cid) if cid else None
-            results.append(_map_application_to_response(r, call_info=c_info))
-            if len(results) >= limit:
-                break
-
-    return results[:limit]
+    sb = _get_active_supabase()
+    try:
+        query = sb.table("grant_applications").select("*, grant_calls(name, status)")
+        if call_id:
+            query = query.eq("call_id", call_id)
+        if status_filter:
+            query = query.eq("status", status_filter)
+        res = query.order("created_at", desc=True).limit(limit).execute()
+        rows = _to_dict_list(res.data) if res and res.data else []
+        return [_map_application_to_response(r) for r in rows]
+    except Exception as e:
+        logger.error("Błąd pobierania listy wniosków ROPS z Supabase: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Wystąpił błąd komunikacji z bazą danych podczas pobierania wniosków.",
+        )
 
 
 def admin_update_application_status(
@@ -937,7 +862,7 @@ def admin_update_application_status(
     admin_id: str,
 ) -> GrantApplicationResponse:
     """
-    Aktualizuje status wniosku w procesie oceny ROPS Kraków:
+    Aktualizuje status wniosku w procesie oceny ROPS Kraków wyłącznie w Supabase:
     'w_ocenie', 'zaakceptowany', 'odrzucony' + notatka urzędowa.
     """
     allowed_statuses = {"w_ocenie", "zaakceptowany", "odrzucony", "roboczy", "zlozony"}
@@ -946,6 +871,13 @@ def admin_update_application_status(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Niedozwolony status oceny: '{update_data.status}'. Dozwolone to: {sorted(list(allowed_statuses))}.",
+        )
+
+    existing = get_application_by_id_raw(application_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Wniosek grantowy o ID '{application_id}' nie został odnaleziony.",
         )
 
     now_str = datetime.now(timezone.utc).isoformat()
@@ -958,29 +890,26 @@ def admin_update_application_status(
     if update_data.rops_notes is not None:
         update_dict["rops_notes"] = update_data.rops_notes
 
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table("grant_applications")
-                .update(update_dict)
-                .eq("id", application_id)
-                .execute()
+    sb = _get_active_supabase()
+    try:
+        res = (
+            sb.table("grant_applications")
+            .update(update_dict)
+            .eq("id", application_id)
+            .execute()
+        )
+        updated = _to_dict(res.data) if res and res.data else None
+        if not updated or not updated.get("id"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Baza danych nie potwierdziła trwałej aktualizacji statusu wniosku.",
             )
-            inserted = _to_dict(res.data)
-            if inserted:
-                return _map_application_to_response(inserted)
-        except Exception:
-            pass
-
-    if application_id in _memory_applications_store:
-        _memory_applications_store[application_id].update(update_dict)
-        r = _memory_applications_store[application_id]
-        cid = str(r.get("call_id") or "")
-        c_info = _memory_calls_store.get(cid) if cid else None
-        return _map_application_to_response(r, call_info=c_info)
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Wniosek grantowy o ID '{application_id}' nie został odnaleziony.",
-    )
+        return _map_application_to_response(updated)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Błąd aktualizacji statusu wniosku %s w Supabase: %s", application_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Wystąpił błąd podczas trwałej aktualizacji statusu wniosku.",
+        )

@@ -109,7 +109,7 @@ class TestGrantApplicationGenerator:
         data = create_res.json()
         app_id = data["id"]
         assert data["status"] == "roboczy"
-        assert data["user_id"] == "author-user-001"
+        assert data["user_id"] == "20c6a4b3-90e0-426f-ba47-ca4e2f01c602"
         assert data["title"] == "Mobilna Kawiarnia Senioralna w Gminie Iwkowa"
 
         # Odczyt listy wniosków autora

@@ -34,17 +34,32 @@ def get_current_user(
 
     # 1. Dopuszczenie nagłówka testowego X-Admin-Role oraz X-Test-User-Id WYŁĄCZNIE podczas testów jednostkowych (pytest)
     if is_test_runner:
+        # Autentyczne konta zarejestrowane w Supabase auth.users
+        AUTHOR_A_ID = "20c6a4b3-90e0-426f-ba47-ca4e2f01c602"
+        AUTHOR_B_ID = "deaddc0c-9765-4cf5-940c-319bab3bfa10"
+        ROPS_ADMIN_ID = "4eea778a-53a7-41f6-9b94-36a39b762b37"
+
         if x_test_user_id:
-            role = "rops_admin" if x_admin_role in ("rops_admin", "admin", "mentor") else "applicant"
+            low = x_test_user_id.lower()
+            if x_admin_role in ("applicant", "author", "user") or ("author" in low and "rops" not in low and not low.startswith("admin")):
+                uid = AUTHOR_B_ID if ("author-b" in low or "author_b" in low or "autor-b" in low) else AUTHOR_A_ID
+                role = "applicant"
+            elif "admin" in low or "rops" in low or x_admin_role in ("rops_admin", "admin", "mentor"):
+                uid = ROPS_ADMIN_ID
+                role = "rops_admin"
+            else:
+                uid = AUTHOR_A_ID
+                role = "applicant"
+
             return UserSession(
-                user_id=x_test_user_id,
+                user_id=uid,
                 email=f"{x_test_user_id}@test.malopolska.pl",
                 role=role,
                 is_admin=(role == "rops_admin"),
             )
         if x_admin_role in ("rops_admin", "admin", "mentor"):
             return UserSession(
-                user_id="admin-rops-001",
+                user_id=ROPS_ADMIN_ID,
                 email="kontakt@rops.krakow.pl",
                 role="rops_admin",
                 is_admin=True,

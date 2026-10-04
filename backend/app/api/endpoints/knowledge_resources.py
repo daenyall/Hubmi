@@ -20,6 +20,8 @@ from app.services.knowledge_resources import (
     admin_update_resource,
     admin_verify_resource,
     admin_publish_resource,
+    admin_unpublish_resource,
+    admin_delete_resource,
 )
 
 logger = logging.getLogger(__name__)
@@ -159,6 +161,32 @@ async def admin_publish_resource_status(
     """
     Publikuje zasób wiedzy w publicznym Zasobniku ROPS Kraków (status: 'opublikowany').
     Od tej chwili materiał jest widoczny dla mieszkańców, NGO i JST.
+    Wymaga wcześniejszej formalnej weryfikacji przez ROPS.
     """
     admin_id = admin.user_id or "admin-rops"
     return admin_publish_resource(resource_id, admin_id=admin_id)
+
+
+@admin_router.post("/{resource_id}/unpublish", response_model=KnowledgeResourceResponse)
+async def admin_unpublish_resource_status(
+    resource_id: str,
+    admin: UserSession = Depends(require_rops_admin),
+):
+    """
+    Wycofuje publikację zasobu wiedzy z publicznego widoku (ustawia status 'zweryfikowany').
+    """
+    admin_id = admin.user_id or "admin-rops"
+    return admin_unpublish_resource(resource_id, admin_id=admin_id)
+
+
+@admin_router.delete("/{resource_id}")
+async def admin_delete_resource_status(
+    resource_id: str,
+    admin: UserSession = Depends(require_rops_admin),
+):
+    """
+    Trwale usuwa zasób wiedzy z bazy danych ROPS Kraków.
+    Dostęp wyłącznie dla Administratora ROPS.
+    """
+    admin_id = admin.user_id or "admin-rops"
+    return admin_delete_resource(resource_id, admin_id=admin_id)
