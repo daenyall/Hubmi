@@ -70,9 +70,13 @@ BEGIN
     NEW.created_at := now();
     NEW.updated_at := now();
 
-    -- Powiązanie z zalogowanym użytkownikiem (jeśli istnieje)
+    -- BEZWZGLĘDNA BLOKADA PODSZYWANIA SIĘ POD CUDZY USER_ID:
+    -- Jeśli użytkownik jest zalogowany -> przypisz jego prawdziwy identyfikator sesji auth.uid()
+    -- Jeśli użytkownik jest niezalogowanym gościem -> user_id MUSI wynosić NULL
     IF auth.uid() IS NOT NULL THEN
         NEW.user_id := auth.uid();
+    ELSE
+        NEW.user_id := NULL;
     END IF;
 
     RETURN NEW;
@@ -95,7 +99,7 @@ DROP POLICY IF EXISTS "Public and users can insert needs" ON public.community_ne
 DROP POLICY IF EXISTS "ROPS Admin full management on community needs" ON public.community_needs;
 DROP POLICY IF EXISTS "Authors can view own submitted needs" ON public.community_needs;
 
--- 1. Zapis (INSERT): dozwolony dla anon i authenticated
+-- 1. Zapis (INSERT): dozwolony dla anon i authenticated z blokadą podszywania się pod user_id
 CREATE POLICY "Public and users can insert needs"
 ON public.community_needs FOR INSERT 
 TO anon, authenticated
@@ -105,6 +109,12 @@ WITH CHECK (
     AND (rops_internal_notes IS NULL OR rops_internal_notes = '')
     AND reviewed_by IS NULL
     AND reviewed_at IS NULL
+    -- Zabezpieczenie tożsamości na poziomie RLS:
+    AND (
+        (auth.uid() IS NULL AND user_id IS NULL)
+        OR
+        (auth.uid() IS NOT NULL AND (user_id IS NULL OR user_id = auth.uid()))
+    )
 );
 
 -- 2. Odczyt (SELECT): 
