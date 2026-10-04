@@ -4,9 +4,11 @@
     "title": "Mobilny Asystent Seniora",
     "category": "Seniorzy",
     "target_group": "Seniorzy 65+, osoby z niepełnosprawnością ruchową na terenach wiejskich",
-    "why_relevant": "Rozwiązanie testowane w gminach wiejskich Małopolski; łączy transport do lekarza z asystą w załatwianiu spraw urzędowych.",
+    "why_relevant": "Wzorzec demonstracyjny MVP oparty na Małopolskich Modelach Usług Społecznych ROPS Kraków; łączy transport do lekarza z asystą w sprawach urzędowych.",
     "description": "System mobilnego wsparcia dla osób starszych mieszkających w rozproszonych sołectwach. Asystent dysponuje przystosowanym pojazdem, pomaga w dotarciu na rehabilitację, wizyty lekarskie oraz wspiera w codziennych zakupach i sprawach urzędowych.",
-    "source_url": "https://rops.krakow.pl/innowacje/asystent-seniora",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/innowacje-w-malopolskich-modelach",
+    "source_label": "ROPS Kraków – Małopolskie Modele Usług Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -14,9 +16,11 @@
     "title": "Sąsiedzka Sieć Wsparcia Psychicznego",
     "category": "Zdrowie psychiczne",
     "target_group": "Młodzież i dorośli w kryzysie emocjonalnym, osoby samotne",
-    "why_relevant": "Odpowiedź na kryzys zdrowia psychicznego w mniejszych miejscowościach pozbawionych stałego dostępu do psychoterapeutów.",
+    "why_relevant": "Wzorzec demonstracyjny MVP oparty na obszarze zdrowia psychicznego Inkubatora Włączenia Społecznego ROPS Kraków; odpowiada na deficyt psychoterapii w mniejszych gminach.",
     "description": "Lokalna sieć przeszkolonych liderów społecznych (tzw. pierwszego kontaktu kryzysowego), którzy potrafią zidentyfikować pierwsze symptomy depresji i kryzysu psychicznego, oferując wsparcie i bezpieczne pokierowanie do specjalistów.",
-    "source_url": "https://rops.krakow.pl/innowacje/wsparcie-psychiczne",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -24,9 +28,11 @@
     "title": "Terenowy Wózek Asystujący 'Włóczykij'",
     "category": "Dostępność",
     "target_group": "Osoby z niepełnosprawnościami sprzężonymi, dzieci i młodzież poruszająca się na wózkach",
-    "why_relevant": "Umożliwia pełny udział w wycieczkach i spacerach w trudnym górzystym terenie Małopolski.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z bazy innowacji społecznych; umożliwia pełny udział w wycieczkach w trudnym górzystym terenie Małopolski.",
     "description": "Specjalistyczny, jednoszpilkowy wózek terenowy prowadzony przez dwóch asystentów, umożliwiający osobom z porażeniem mózgowym lub ciężkimi niepełnosprawnościami ruchowymi bezpieczne przemieszczanie się po szlakach leśnych i parkach krajobrazowych.",
-    "source_url": "https://rops.krakow.pl/innowacje/wloczykij",
+    "source_url": "https://innowacjespoleczne.org.pl",
+    "source_label": "Baza Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -34,9 +40,11 @@
     "title": "Cyfrowy Latarnik Pokoleń",
     "category": "Włączenie cyfrowe",
     "target_group": "Seniorzy zagrożeni wykluczeniem technologicznym, młodzież szkolna",
-    "why_relevant": "Eliminuje bariery w e-usługach i IKP (Internetowe Konto Pacjenta) poprzez wolontariat międzypokoleniowy.",
+    "why_relevant": "Wzorzec demonstracyjny MVP inspirowany projektami międzypokoleniowymi ROPS Kraków; eliminuje bariery w e-usługach i IKP (Internetowe Konto Pacjenta).",
     "description": "Model warsztatów 1-na-1 prowadzonych przez młodzież dla seniorów. Uczy obsługi smartfona, zamawiania e-recept, korzystania z mObywatela i bankowości internetowej z naciskiem na cyberbezpieczeństwo i przeciwdziałanie oszustwom 'na wnuczka'.",
-    "source_url": "https://rops.krakow.pl/innowacje/latarnik-cyfrowy",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -44,9 +52,11 @@
     "title": "Sensoryczna Przystań (Pokój Wyciszeń)",
     "category": "Dostępność",
     "target_group": "Dzieci w spektrum autyzmu, z zaburzeniami sensorycznymi, uczniowie szkół powszechnych",
-    "why_relevant": "Gotowy, tani w adaptacji projekt modułowej sali wyciszeń dla wiejskich szkół i przedszkoli.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z obszaru dostępności ROPS Kraków; gotowy, modułowy projekt sali wyciszeń dla szkół i przedszkoli.",
     "description": "Niskokosztowy zestaw aranżacyjny dla sal szkolnych – specjalne oświetlenie tłumiące bodźce, fotele kokonowe, panele akustyczne i sprzęt do integracji sensorycznej. Pozwala dzieciom przebodźcowanym zredukować stres i zapobiegać kryzysom bez konieczności opuszczania szkoły.",
-    "source_url": "https://rops.krakow.pl/innowacje/pokoj-wyciszen",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -54,9 +64,11 @@
     "title": "Mobilny Punkt Usług Społecznych (Bus CUS)",
     "category": "Usługi publiczne",
     "target_group": "Mieszkańcy małych sołectw, osoby zależne, rodziny wielodzietne",
-    "why_relevant": "Przełamuje barierę depopulacji i odległości od ośrodków miejskich w Małopolsce.",
+    "why_relevant": "Wzorzec demonstracyjny MVP oparty na Małopolskich Modelach Usług Społecznych ROPS Kraków; przełamuje barierę odległości od ośrodków miejskich.",
     "description": "Specjalistyczny mikrobus kursujący według stałego harmonogramu po sołectwach. Na pokładzie dyżurują: pracownik socjalny, doradca ds. ulg i świadczeń, prawnik oraz pielęgniarka wykonująca podstawowe badania profilaktyczne.",
-    "source_url": "https://rops.krakow.pl/innowacje/mobilny-cus",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/innowacje-w-malopolskich-modelach",
+    "source_label": "ROPS Kraków – Małopolskie Modele Usług Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -64,9 +76,11 @@
     "title": "Kawiarenka Pamięci (Dementia Cafe)",
     "category": "Seniorzy",
     "target_group": "Osoby z chorobą Alzheimera i zespołami otępiennymi oraz ich nieformalni opiekunowie",
-    "why_relevant": "Zapewnia opiekę wytchnieniową i zapobiega wypaleniu opiekunów rodzinnych.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z obszaru opieki wytchnieniowej ROPS Kraków; zapobiega wypaleniu opiekunów rodzinnych.",
     "description": "Cykliczne, nieformalne spotkania w kawiarniach lub domach kultury. Podczas gdy chorzy uczestniczą w zajęciach aktywizujących pamięć prowadzonych przez terapeutów, ich bliscy otrzymują wsparcie psychologiczne, wymieniają się doświadczeniami i regenerują siły.",
-    "source_url": "https://rops.krakow.pl/innowacje/kawiarenka-pamieci",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -74,9 +88,11 @@
     "title": "Spółdzielnia Usług Sąsiedzkich (CzasoBank)",
     "category": "Integracja społeczna",
     "target_group": "Samotne matki, seniorzy, osoby bezrobotne, migranci",
-    "why_relevant": "Buduje kapitał społeczny i samopomoc bez konieczności dysponowania dużym budżetem gminnym.",
+    "why_relevant": "Wzorzec demonstracyjny MVP inspirowany metodologią Inkubatora Włączenia Społecznego ROPS Kraków; buduje kapitał społeczny bez dużego budżetu.",
     "description": "Lokalny system bezgotówkowej wymiany usług oparty na banku czasu. Przykładowo: senior pomaga w lekcjach matematyki, a w zamian rodzic młodego dziecka pomaga mu zrobić większe zakupy lub skosić trawnik.",
-    "source_url": "https://rops.krakow.pl/innowacje/bank-czasu",
+    "source_url": "https://rops.krakow.pl/projekty-i-programy/inkubator-wlaczenia-spolecznego-2-0",
+    "source_label": "ROPS Kraków – Inkubator Włączenia Społecznego 2.0 (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -84,9 +100,11 @@
     "title": "Trener Usamodzielnienia Młodzieży Pieczy Zastępczej",
     "category": "Młodzież",
     "target_group": "Wychowankowie pieczy zastępczej i domów dziecka wchodzący w dorosłość (18-24 lata)",
-    "why_relevant": "Skutecznie zmniejsza ryzyko bezdomności i wykluczenia społecznego młodzieży opuszczającej placówki.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z biblioteki innowacji ROPS Kraków; zmniejsza ryzyko bezdomności i wykluczenia młodzieży opuszczającej pieczę.",
     "description": "Indywidualny program mentoringowy prowadzony przez dedykowanego trenera życiowego. Pomaga w znalezieniu pierwszego mieszkania, nauce zarządzania budżetem domowym, wejściu na rynek pracy i radzeniu sobie z biurokracją.",
-    "source_url": "https://rops.krakow.pl/innowacje/trener-usamodzielnienia",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -94,9 +112,11 @@
     "title": "Sensoryczny Ogród Społeczny przy DPS",
     "category": "Dostępność",
     "target_group": "Mieszkańcy Domów Pomocy Społecznej oraz lokalna społeczność (dzieci, sąsiedzi)",
-    "why_relevant": "Otwiera zamknięte instytucje opiekuńcze na integrację ze społecznością lokalną.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z obszaru dostępności ROPS Kraków; otwiera zamknięte instytucje opiekuńcze na integrację ze społecznością lokalną.",
     "description": "Podwyższone grządki dostępne dla osób na wózkach, ścieżki sensoryczne (kora, kamienie, szyszki), rośliny miododajne i zioła zapachowe. Miejsce wspólnych warsztatów ogrodniczych łączących pensjonariuszy z dziećmi z pobliskiej szkoły.",
-    "source_url": "https://rops.krakow.pl/innowacje/ogrod-sensoryczny",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -104,9 +124,11 @@
     "title": "Jadłodzielnia Społeczna z Warsztatem Zero-Waste",
     "category": "Pomoc społeczna",
     "target_group": "Osoby ubogie, bezdomne, rodziny wielodzietne oraz seniorzy w trudnej sytuacji materialnej",
-    "why_relevant": "Łączy natychmiastową pomoc żywnościową z edukacją niemarnowania zasobów i integracją sąsiedzką.",
+    "why_relevant": "Wzorzec demonstracyjny MVP inspirowany metodologią Inkubatora Włączenia Społecznego ROPS Kraków; łączy pomoc żywnościową z edukacją niemarnowania zasobów.",
     "description": "Punkt bezpłatnej wymiany żywności z certyfikowanymi lodówkami społecznymi, zorganizowany przy lokalnym CUS. Towarzyszą mu cykliczne warsztaty przetwarzania nadwyżek żywności i gotowania oszczędnego prowadzone przez lokalnych wolontariuszy.",
-    "source_url": "https://rops.krakow.pl/innowacje/jadlodzielnia-spoleczna",
+    "source_url": "https://rops.krakow.pl/projekty-i-programy/inkubator-wlaczenia-spolecznego-2-0",
+    "source_label": "ROPS Kraków – Inkubator Włączenia Społecznego 2.0 (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -114,9 +136,11 @@
     "title": "Mieszkanie Treningowe dla Osób w Spektrum Autyzmu",
     "category": "Dostępność",
     "target_group": "Dorośli w spektrum autyzmu i z niepełnosprawnościami sprzężonymi dążący do samodzielności",
-    "why_relevant": "Alternatywa dla instytucjonalizacji; przygotowuje do samodzielnego mieszkania z asystentem.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z obszaru deinstytucjonalizacji ROPS Kraków; przygotowuje do samodzielnego mieszkania z asystentem.",
     "description": "Modułowe mieszkanie wspomagane, w którym osoby dorosłe w spektrum autyzmu uczą się samodzielnego prowadzenia gospodarstwa domowego (zakupy, gotowanie, płacenie rachunków) pod okiem terapeutów i asystentów cienia w systemie turnusowym.",
-    "source_url": "https://rops.krakow.pl/innowacje/mieszkanie-treningowe",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -124,9 +148,11 @@
     "title": "Międzypokoleniowy Klub Rodzinny 'Razem Łatwiej'",
     "category": "Wsparcie rodziny",
     "target_group": "Młode rodziny, rodzice samotnie wychowujący dzieci, seniorzy poszukujący aktywności",
-    "why_relevant": "Odbudowuje więzi międzypokoleniowe w małych gminach, gdzie brakuje żłobków i klubów seniora.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z biblioteki innowacji ROPS Kraków; odbudowuje więzi międzypokoleniowe w małych gminach.",
     "description": "Przestrzeń spotkań łącząca klub seniora z bawialnią i punktem wsparcia rodziców. Seniorzy pełnią rolę 'przyszywanych dziadków', wspierając rodziców w doraźnej opiece nad dziećmi, a rodzice pomagają seniorom w sprawach cyfrowych i technicznych.",
-    "source_url": "https://rops.krakow.pl/innowacje/klub-rodzinny",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -134,9 +160,11 @@
     "title": "Bezpieczny E-Senior w Sieci",
     "category": "Włączenie cyfrowe",
     "target_group": "Seniorzy korzystający z internetu i bankowości elektronicznej, narażeni na cyberzagrożenia",
-    "why_relevant": "Zwiększa cyberbezpieczeństwo osób starszych, skutecznie chroniąc przed phishingiem i fałszywymi SMS-ami.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z biblioteki innowacji ROPS Kraków; zwiększa cyberbezpieczeństwo osób starszych przed wyłudzeniami.",
     "description": "Praktyczny program edukacyjny z symulatorem podejrzanych wiadomości i stron bankowych. Seniorzy na bezpiecznym tablecie ćwiczą rozpoznawanie prób wyłudzeń 'na wnuczka' i 'na policjanta' oraz zgłaszanie incydentów do CERT Polska.",
-    "source_url": "https://rops.krakow.pl/innowacje/bezpieczny-e-senior",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   },
   {
@@ -144,10 +172,11 @@
     "title": "Mobilny Punkt Pomocy Psychotraumatologicznej i Kryzysowej",
     "category": "Zdrowie psychiczne",
     "target_group": "Kobiety i dzieci doświadczające przemocy domowej, rodziny w nagłym kryzysie losowym na terenach wiejskich",
-    "why_relevant": "Zapewnia dyskretną pomoc psychologiczną i prawną w miejscach, gdzie ofiary nie mają możliwości dojazdu do miasta powiatowego.",
+    "why_relevant": "Wzorzec demonstracyjny MVP z biblioteki innowacji ROPS Kraków; zapewnia dyskretną pomoc psychologiczną i prawną na terenach wiejskich.",
     "description": "Nieoznakowany mobilny gabinet psychologiczno-prawny docierający bezpośrednio do sołectw. Oferuje natychmiastowe wsparcie kryzysowe, pomoc psychotraumatologa oraz bezpieczne schronienie tymczasowe w porozumieniu z Ośrodkiem Interwencji Kryzysowej.",
-    "source_url": "https://rops.krakow.pl/innowacje/pomoc-kryzysowa",
+    "source_url": "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie",
+    "source_label": "ROPS Kraków – Biblioteka Innowacji Społecznych (wzorzec demonstracyjny)",
+    "is_demonstrative": true,
     "status": "sprawdzone"
   }
 ]
-

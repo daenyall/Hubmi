@@ -10,6 +10,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _normalize_innovation_source(raw_url: Optional[str], inv_id: str, why_relevant: Optional[str]) -> str:
+    url_str = (raw_url or "").strip()
+    if not url_str or ("/innowacje/" in url_str and not url_str.startswith("https://rops.krakow.pl/innowacje-spoleczne/")):
+        if "model" in (why_relevant or "").lower() or inv_id in ("inv_01", "inv_06"):
+            return "https://rops.krakow.pl/innowacje-spoleczne/innowacje-w-malopolskich-modelach"
+        if inv_id == "inv_03":
+            return "https://innowacjespoleczne.org.pl"
+        if inv_id in ("inv_08", "inv_11"):
+            return "https://rops.krakow.pl/projekty-i-programy/inkubator-wlaczenia-spolecznego-2-0"
+        return "https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie"
+    return url_str
+
+
 @router.get("/innovations", response_model=List[MatchItem])
 async def list_innovations(
     category: Optional[str] = Query(None, description="Filtruj według kategorii (np. Seniorzy, Dostępność)"),
@@ -29,7 +42,7 @@ async def list_innovations(
         # Publiczne API zwraca bezwzględnie tylko status 'sprawdzone'
         query = (
             supabase.table("innovations")
-            .select("id, title, description, target_group, category, why_relevant, source_url, status")
+            .select("id, title, description, target_group, category, why_relevant, source_url, status, author_or_institution")
             .eq("status", "sprawdzone")
         )
         if category:
@@ -42,17 +55,24 @@ async def list_innovations(
         if isinstance(data, list):
             for row in data:
                 if isinstance(row, dict):
+                    rid = str(row.get("id", "")).strip()
+                    why_rel = to_str(row.get("why_relevant"))
+                    is_demo = bool(row.get("is_demonstrative", False)) or ("demonstracyj" in (why_rel or "").lower()) or rid.startswith("inv_")
+                    src_label = to_str(row.get("source_label")) or to_str(row.get("author_or_institution")) or "ROPS Kraków – Baza Innowacji Społecznych (wzorzec demonstracyjny)"
+                    norm_url = _normalize_innovation_source(row.get("source_url"), rid, why_rel)
                     items.append(
                         MatchItem(
-                            id=str(row.get("id", "")).strip(),
+                            id=rid,
                             title=str(row.get("title", "")).strip(),
                             similarity_score=1.0,
-                            why_relevant=to_str(row.get("why_relevant")),
-                            source_url=to_str(row.get("source_url")),
+                            why_relevant=why_rel,
+                            source_url=norm_url,
                             target_group=to_str(row.get("target_group")),
                             category=to_str(row.get("category")),
                             description=to_str(row.get("description")),
                             status=str(row.get("status", "sprawdzone")).strip(),
+                            is_demonstrative=is_demo,
+                            source_label=src_label,
                         )
                     )
         return items
@@ -83,7 +103,7 @@ async def get_innovation_by_id(innovation_id: str):
         # W widoku publicznym odczytujemy wyłącznie pozycje sprawdzone
         res = (
             supabase.table("innovations")
-            .select("id, title, description, target_group, category, why_relevant, source_url, status")
+            .select("id, title, description, target_group, category, why_relevant, source_url, status, author_or_institution")
             .eq("id", innovation_id)
             .eq("status", "sprawdzone")
             .execute()
@@ -95,16 +115,23 @@ async def get_innovation_by_id(innovation_id: str):
                 detail=f"Innowacja o identyfikatorze '{innovation_id}' nie została odnaleziona.",
             )
         row = data[0]
+        rid = str(row.get("id", "")).strip()
+        why_rel = to_str(row.get("why_relevant"))
+        is_demo = bool(row.get("is_demonstrative", False)) or ("demonstracyj" in (why_rel or "").lower()) or rid.startswith("inv_")
+        src_label = to_str(row.get("source_label")) or to_str(row.get("author_or_institution")) or "ROPS Kraków – Baza Innowacji Społecznych (wzorzec demonstracyjny)"
+        norm_url = _normalize_innovation_source(row.get("source_url"), rid, why_rel)
         return MatchItem(
-            id=str(row.get("id", "")).strip(),
+            id=rid,
             title=str(row.get("title", "")).strip(),
             similarity_score=1.0,
-            why_relevant=to_str(row.get("why_relevant")),
-            source_url=to_str(row.get("source_url")),
+            why_relevant=why_rel,
+            source_url=norm_url,
             target_group=to_str(row.get("target_group")),
             category=to_str(row.get("category")),
             description=to_str(row.get("description")),
             status=str(row.get("status", "sprawdzone")).strip(),
+            is_demonstrative=is_demo,
+            source_label=src_label,
         )
     except HTTPException:
         raise

@@ -116,12 +116,23 @@ def seed_innovations(json_path: Optional[str] = None, dry_run: bool = False, ver
             "why_relevant": item.get("why_relevant", "").strip(),
             "source_url": item.get("source_url", "").strip(),
             "status": item.get("status", "sprawdzone").strip(),
-            "author_or_institution": "ROPS Kraków",
+            "author_or_institution": item.get("source_label") or "ROPS Kraków",
             "embedding": embedding,
         }
+        if "is_demonstrative" in item:
+            row["is_demonstrative"] = item["is_demonstrative"]
+        if "source_label" in item:
+            row["source_label"] = item["source_label"]
 
         try:
-            supabase.table("innovations").upsert(row).execute()
+            try:
+                supabase.table("innovations").upsert(row).execute()
+            except Exception:
+                # Fallback jeśli kolumny migracji 11 nie zostały jeszcze dodane do bazy
+                row.pop("is_demonstrative", None)
+                row.pop("source_label", None)
+                supabase.table("innovations").upsert(row).execute()
+
             success_count += 1
             if verbose:
                 print(f"  ✓ [{inv_id}] {title[:40]}... (wektor: {len(embedding)}D)")
