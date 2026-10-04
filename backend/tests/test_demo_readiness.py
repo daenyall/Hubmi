@@ -108,3 +108,31 @@ def test_truncated_plan_is_not_returned_as_generated_ai(monkeypatch):
     monkeypatch.setattr(ai.requests, "post", post)
     assert ai._request_gemini_content({}, 1) == complete
     assert post.call_count == 2
+
+
+def test_transient_503_does_not_disable_model_for_the_following_plan(monkeypatch):
+    monkeypatch.setattr(ai.settings, "GEMINI_GENERATION_MODEL", "primary")
+    monkeypatch.setattr(ai.settings, "GEMINI_GENERATION_FALLBACK_MODELS", "")
+    monkeypatch.setattr(ai, "_gemini_unavailable_until", {})
+    post = MagicMock(side_effect=[SimpleNamespace(status_code=503), SimpleNamespace(status_code=200, json=lambda: {"candidates": []})])
+    monkeypatch.setattr(ai.requests, "post", post)
+    assert ai._request_gemini_content({}, 10) is None
+    assert ai._request_gemini_content({}, 10) == {"candidates": []}
+    assert post.call_count == 2
+    assert post.call_args.kwargs["timeout"] <= 5
+
+
+def test_plan_cache_reuses_success_and_retries_failure(monkeypatch):
+    ai._get_generated_gemini_plan.cache_clear()
+    response = {"candidates": [{"content": {"parts": [{"text": "Complete real provider response"}]}}]}
+    provider = MagicMock(side_effect=[None, response, response])
+    monkeypatch.setattr(ai, "_request_gemini_content", provider)
+    try:
+        with pytest.raises(RuntimeError):
+            ai._get_generated_gemini_plan("context A")
+        assert ai._get_generated_gemini_plan("context A") == "Complete real provider response"
+        assert ai._get_generated_gemini_plan("context A") == "Complete real provider response"
+        ai._get_generated_gemini_plan("context B")
+        assert provider.call_count == 3
+    finally:
+        ai._get_generated_gemini_plan.cache_clear()

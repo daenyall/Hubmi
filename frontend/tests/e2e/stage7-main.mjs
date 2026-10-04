@@ -60,7 +60,7 @@ async function login(page, who) {
       if (await a.evaluate(() => document.activeElement?.textContent?.includes('Znajdź rozwiązania'))) break;
     }
     check('A: formularz obsługiwany klawiaturą', await a.evaluate(() => document.activeElement?.textContent?.includes('Znajdź rozwiązania')));
-    const matchResponse = a.waitForResponse((response) => response.url().endsWith('/api/match') && response.request().method() === 'POST');
+    const matchResponse = a.waitForResponse((response) => response.url().endsWith('/api/match') && response.request().method() === 'POST', { timeout: 45_000 });
     await a.keyboard.press('Enter');
     const match = await matchResponse;
     const matched = await match.json();
@@ -78,7 +78,7 @@ async function login(page, who) {
       check('A: źródło i oznaczenie wzorca w dopasowaniach', await card.getByRole('link', { name: /Zobacz źródło/ }).count() > 0 && (!innovation.is_demonstrative || (await card.innerText()).includes('Wzorzec demonstracyjny')));
       await card.locator('summary').click();
       await card.getByLabel('Kontekst Twojej instytucji (wymagane)').fill('Gmina wiejska, CUS, świetlica i wolontariusze. Pilotaż przez 3 miesiące, budżet 20 tys. zł.');
-      const response = a.waitForResponse((res) => res.url().endsWith('/api/adapt'));
+      const response = a.waitForResponse((res) => res.url().endsWith('/api/adapt'), { timeout: 45_000 });
       await card.getByRole('button', { name: 'Wygeneruj plan adaptacji' }).click();
       const generated = await response; const plan = await generated.json();
       await card.getByText('Plan adaptacji jest gotowy.', { exact: true }).waitFor();

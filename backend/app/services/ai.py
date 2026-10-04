@@ -35,7 +35,7 @@ def _request_gemini_content(payload: dict, timeout: float) -> Optional[dict]:
                 }
             response = requests.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                headers={"x-goog-api-key": settings.GEMINI_API_KEY}, json=model_payload, timeout=remaining,
+                headers={"x-goog-api-key": settings.GEMINI_API_KEY}, json=model_payload, timeout=min(remaining, timeout / 2),
             )
             if response.status_code == 200:
                 data = response.json()
@@ -43,7 +43,7 @@ def _request_gemini_content(payload: dict, timeout: float) -> Optional[dict]:
                     logger.warning("Gemini generation %s was incomplete", model)
                     continue
                 return data
-            if response.status_code in (429, 404, 503):
+            if response.status_code in (429, 404):
                 _gemini_unavailable_until[model] = time.monotonic() + 60
             logger.warning("Gemini generation %s returned HTTP %s", model, response.status_code)
         except (requests.RequestException, ValueError):
@@ -349,6 +349,22 @@ def _build_fallback_adaptation_plan(
 4. **Dostępność i trwałość**: Potwierdzenie pełnej zgodności rozwiązań ze standardami dostępności WCAG 2.1 AA / ETR."""
 
 
+@lru_cache(maxsize=128)
+def _get_generated_gemini_plan(prompt: str) -> str:
+    """Reuse only completed real plans; failed calls never enter the cache."""
+    data = _request_gemini_content({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1400},
+    }, timeout=30)
+    if data:
+        for candidate in data.get("candidates", []):
+            parts = candidate.get("content", {}).get("parts", [])
+            full_text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+            if full_text.strip():
+                return full_text.strip()
+    raise RuntimeError("No complete Gemini adaptation plan")
+
+
 def _generate_gemini_plan(
     innovation_title: str,
     innovation_desc: str,
@@ -373,16 +389,7 @@ def _generate_gemini_plan(
         )
 
         prompt += "\nNapisz zwięźle, maksymalnie 350 słów. Zawrzyj wszystkie sześć części planu. Finansowanie opisz jako propozycje wymagające sprawdzenia. Nie deklaruj formalnej zgodności ani zatwierdzenia ROPS."
-        data = _request_gemini_content({
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1400},
-        }, timeout=18)
-        if data:
-            for candidate in data.get("candidates", []):
-                parts = candidate.get("content", {}).get("parts", [])
-                full_text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
-                if full_text.strip():
-                    return full_text.strip()
+        return _get_generated_gemini_plan(prompt)
     except Exception as e:
         logger.warning("Gemini completion error: %s", e)
     return None
