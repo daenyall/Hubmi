@@ -40,6 +40,8 @@ export interface MatchItem {
   reason: string;
   audience?: string | string[];
   tags?: string[];
+  /** is_demonstrative z backendu: syntetyczny wzorzec MVP, nie rekord z bazy ROPS. */
+  demonstrative?: boolean;
 }
 
 export interface MatchResponse {
@@ -95,6 +97,7 @@ function parseInnovation(value: unknown): MatchItem {
     source_url: value.source_url?.trim() || null,
     ...(value.target_group?.trim() ? { audience: value.target_group.trim() } : {}),
     ...(value.category?.trim() ? { tags: [value.category.trim()] } : {}),
+    ...(value.is_demonstrative === true ? { demonstrative: true } : {}),
   };
 }
 

@@ -21,7 +21,7 @@ const challengesPath = compile("features/knowledge/challenges.ts", "challenges.j
 const resourcesPath = compile("features/knowledge/resources.ts", "resources.js");
 after(() => rmSync(output, { recursive: true, force: true }));
 const require = createRequire(import.meta.url);
-const { MALOPOLSKA_CHALLENGES, NATIONWIDE_MAP, CHALLENGE_SOURCE } = require(challengesPath);
+const { MALOPOLSKA_CHALLENGES, NATIONWIDE_MAP, CHALLENGE_SOURCE, REPORT_FINDINGS, OZPS_REPORT_PAGE } = require(challengesPath);
 const { isSafeResourceUrl } = require(resourcesPath);
 
 test("audyt wymaga od 3 do 5 kart wyzwań o unikalnych identyfikatorach", () => {
@@ -59,4 +59,25 @@ test("dane Małopolski są oddzielone od ogólnopolskiej Mapy Wyzwań", () => {
   assert.doesNotMatch(NATIONWIDE_MAP.caveat, /wskaźnikami dla Małopolski(?!.)/);
   assert.match(NATIONWIDE_MAP.caveat, /nie są wskaźnikami dla Małopolski/i);
   assert.ok(isSafeResourceUrl(NATIONWIDE_MAP.url), "Mapa musi mieć bezpieczny adres http(s)");
+});
+
+test("ustalenia z raportu: źródło, rok i zasięg przy każdym, adresy HTTPS ROPS", () => {
+  assert.ok(REPORT_FINDINGS.length >= 5);
+  assert.equal(new Set(REPORT_FINDINGS.map((f) => f.id)).size, REPORT_FINDINGS.length);
+  assert.ok(isSafeResourceUrl(OZPS_REPORT_PAGE));
+  for (const f of REPORT_FINDINGS) {
+    assert.ok(f.theme && f.finding && f.period, f.id);
+    assert.equal(f.year, 2025, f.id);
+    assert.equal(f.scope, "woj. małopolskie", f.id);
+    assert.ok(f.source.title && isSafeResourceUrl(f.source.url) && new URL(f.source.url).hostname === "rops.krakow.pl", f.id);
+  }
+});
+
+test("dane ogólnopolskie są tylko w polu porównania, nie w ustaleniu regionalnym", () => {
+  assert.match("dla Polski minus 4,5", /(?<![a-ząćęłńóśźż])(polsk|polsc|kraj|ogólnopolsk)/i, "wzorzec wykrywa dane krajowe");
+  assert.doesNotMatch("w Małopolsce", /(?<![a-ząćęłńóśźż])(polsk|polsc|kraj|ogólnopolsk)/i, "Małopolska to nie dane krajowe");
+  for (const f of REPORT_FINDINGS) {
+    assert.doesNotMatch(f.finding, /(?<![a-ząćęłńóśźż])(polsk|polsc|kraj|ogólnopolsk)/i, `${f.id}: ustalenie miesza dane krajowe`);
+    if (f.nationalComparison) assert.match(f.nationalComparison, /Pols(k|c)/, f.id);
+  }
 });
