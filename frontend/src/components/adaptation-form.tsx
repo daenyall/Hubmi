@@ -2,14 +2,43 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { adaptInnovation } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { adaptInnovation, type AdaptResponse } from "@/lib/api";
 import type { MatchItem } from "@/lib/matching";
 
 type AdaptState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "success"; plan: string };
+  | { status: "success"; result: AdaptResponse };
+
+const SOURCE_NAMES: Record<string, string> = {
+  gemini: "model Gemini",
+  openai: "model OpenAI",
+  template_fallback: "szablon awaryjny ROPS",
+};
+
+/**
+ * Pochodzenie planu. Trzy rozłączne stany, bo brak metadanej to nie wynik AI:
+ * true = wygenerował model, false = szablon awaryjny, null = backend nie podał źródła.
+ * Żaden z nich nie jest stanowiskiem ani zatwierdzeniem ROPS.
+ */
+function PlanOrigin({ result }: { result: AdaptResponse }) {
+  const ai = result.is_ai_generated;
+  const source = result.generation_source;
+  const named = source ? SOURCE_NAMES[source] ?? `źródło „${source}”` : "";
+  const label = ai === true ? "Treść wygenerowana przez AI" : ai === false ? "Szablon awaryjny, nie AI" : "Źródło planu niepotwierdzone";
+  const explanation = ai === true
+    ? `Plan przygotował ${named || "model generatywny"} na podstawie Twojego opisu. Sprawdź dane przed użyciem — to nie jest stanowisko ani zatwierdzenie ROPS.`
+    : ai === false
+      ? `To gotowy szablon${named ? ` (${named})` : ""}, a nie plan przygotowany dla Twojego opisu. Nie jest stanowiskiem ani zatwierdzeniem ROPS i wymaga samodzielnego uzupełnienia.`
+      : `Backend nie podał informacji o źródle tego planu${named ? ` (${named})` : ""}. Nie traktuj treści jako wyniku AI ani jako stanowiska ROPS.`;
+  return <div className="space-y-2 rounded-lg border border-border bg-secondary p-[12px]">
+    <Badge variant={ai === true ? "secondary" : "outline"} className="h-auto min-h-7 max-w-full whitespace-normal">{label}</Badge>
+    <p className="text-sm leading-relaxed">{explanation}</p>
+    {result.disclaimer && <p className="text-sm leading-relaxed text-muted-foreground"><span className="font-semibold">Zastrzeżenie usługi: </span>{result.disclaimer}</p>}
+  </div>;
+}
 
 /** Zachowuje funkcję Middleman AI z upstreamu, z edytowalnym kontekstem. */
 export function AdaptationForm({ item }: { item: MatchItem }) {
@@ -34,7 +63,7 @@ export function AdaptationForm({ item }: { item: MatchItem }) {
     setState({ status: "loading" });
     try {
       const result = await adaptInnovation(item.title, context, item.description, controller.signal);
-      if (!controller.signal.aborted) setState({ status: "success", plan: result.adaptation_plan });
+      if (!controller.signal.aborted) setState({ status: "success", result });
     } catch (error) {
       if (!controller.signal.aborted) setState({
         status: "error",
@@ -48,7 +77,7 @@ export function AdaptationForm({ item }: { item: MatchItem }) {
   return (
     <details className="rounded-xl border border-border p-[16px]">
       <summary className="min-h-11 cursor-pointer rounded-sm py-2 font-semibold text-primary">
-        Plan adaptacji AI
+        Plan adaptacji dla Twojej instytucji
       </summary>
       <form onSubmit={submit} noValidate className="mt-3 space-y-3">
         <label htmlFor={id} className="block text-sm font-semibold">Kontekst Twojej instytucji (wymagane)</label>
@@ -76,9 +105,10 @@ export function AdaptationForm({ item }: { item: MatchItem }) {
         {loading ? "Generujemy plan adaptacji…" : state.status === "success" ? "Plan adaptacji jest gotowy." : ""}
       </p>
       {state.status === "success" && (
-        <div className="mt-3 space-y-2 border-t border-border pt-3">
+        <div className="mt-3 space-y-3 border-t border-border pt-3">
           <h4 className="font-semibold">Plan adaptacji: {item.title}</h4>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.plan}</p>
+          <PlanOrigin result={state.result} />
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.result.adaptation_plan}</p>
         </div>
       )}
     </details>

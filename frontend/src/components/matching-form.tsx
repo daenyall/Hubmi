@@ -65,8 +65,8 @@ function NoMatches({ response }: { response: MatchResponse }) {
           <li><Link href="/baza-wiedzy" className={LINK}>Przejrzyj Zasobnik Wiedzy</Link> i zawęź go filtrem kategorii.</li>
           {response.can_submit_challenge && (
             <li>
-              <Link href="/kreator" className={LINK}>Opisz potrzebę jako fiszkę dla ROPS</Link>
-              {" "}— powiązanie z innowacją jest opcjonalne, więc możesz zgłosić sam problem.
+              <Link href="/kreator" className={LINK}>Zgłoś pomysł na rozwiązanie</Link>
+              {" "}— fiszka wymaga opisu problemu i istoty rozwiązania, więc przygotuj oba.
             </li>
           )}
         </ul>
