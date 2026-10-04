@@ -293,3 +293,100 @@ class InnovationUpdate(BaseModel):
     status: Optional[str] = None
     author_or_institution: Optional[str] = None
 
+
+# ==============================================================================
+# MODELE ZBIERANIA POTRZEB I AGREGACJI DLA ROPS (PUNKT 7briefu)
+# ==============================================================================
+
+class CommunityNeedCreate(BaseModel):
+    institution_name: str = Field(..., min_length=2, max_length=250, description="Nazwa instytucji / samorządu / organizacji")
+    institution_type: str = Field(default="JST", description="Typ jednostki: 'JST', 'CUS', 'OPS', 'NGO', 'Mieszkaniec', 'Inna'")
+    powiat: str = Field(..., min_length=2, max_length=100, description="Powiat w Małopolsce (np. 'tarnowski', 'krakowski', 'nowosądecki')")
+    gmina: Optional[str] = Field(default=None, max_length=100, description="Gmina (opcjonalnie)")
+    contact_email: Optional[str] = Field(default=None, max_length=150, description="Adres e-mail osoby do kontaktu")
+    contact_phone: Optional[str] = Field(default=None, max_length=50, description="Telefon kontaktowy")
+    category: str = Field(..., min_length=2, max_length=100, description="Kategoria wyzwania (np. Seniorzy, Zdrowie psychiczne, Dostępność)")
+    target_group: str = Field(default="Mieszkańcy", min_length=2, max_length=250, description="Odbiorcy / grupa docelowa wyzwania")
+    problem_summary: str = Field(..., min_length=3, max_length=250, description="Krótka teza / tytuł problemu")
+    detailed_description: str = Field(..., min_length=10, max_length=5000, description="Szczegółowy opis luki w usługach społecznych")
+    estimated_affected_count: Optional[int] = Field(default=0, ge=0, le=1000000, description="Szacunkowa liczba osób dotkniętych problemem")
+    urgency_level: str = Field(default="sredni", description="Poziom pilności: 'niski', 'sredni', 'wysoki', 'krytyczny'")
+    hp_website: Optional[str] = Field(default=None, description="Pole honeypot przeciw spamowi (musi być puste)")
+
+
+class CommunityNeedResponse(BaseModel):
+    id: str
+    user_id: Optional[str] = None
+    created_at: str
+    updated_at: Optional[str] = None
+    institution_name: str
+    institution_type: str
+    powiat: str
+    gmina: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    category: str
+    target_group: str
+    problem_summary: str
+    detailed_description: str
+    estimated_affected_count: int = 0
+    urgency_level: str = "sredni"
+    status: str = "nowe"
+    rops_internal_notes: Optional[str] = None
+    reviewed_at: Optional[str] = None
+
+
+class CommunityNeedStatusUpdate(BaseModel):
+    status: str = Field(..., description="Nowy status: 'nowe', 'analizowane', 'uwzglednione_w_naborze', 'odrzucone', 'zaadresowane'")
+    rops_internal_notes: Optional[str] = Field(None, max_length=5000, description="Wewnętrzna notatka analityka ROPS")
+
+
+class CategoryAggregate(BaseModel):
+    category: str
+    count: int
+    percentage: float
+
+
+class PowiatAggregate(BaseModel):
+    powiat: str
+    count: int
+    percentage: float
+
+
+class HotspotRecommendation(BaseModel):
+    theme: str
+    category: str
+    powiat: str
+    reported_count: int
+    urgency_level: str
+    recommended_action: str
+
+
+class NeedsSummaryResponse(BaseModel):
+    total_needs_reported: int
+    filtered_period_days: Optional[int] = None
+    needs_by_status: Dict[str, int]
+    needs_by_urgency: Dict[str, int]
+    top_categories: list[CategoryAggregate]
+    top_powiats: list[PowiatAggregate]
+    emerging_hotspots: list[HotspotRecommendation]
+
+
+class TrendItem(BaseModel):
+    name: str
+    current_count: int
+    previous_count: int
+    growth_percentage: float
+    trend: str  # 'wzrostowy', 'spadkowy', 'stabilny'
+
+
+class NeedsTrendsResponse(BaseModel):
+    period_days: int
+    current_period: Dict[str, Any]
+    previous_period: Dict[str, Any]
+    total_growth_percentage: float
+    category_trends: list[TrendItem]
+    powiat_trends: list[TrendItem]
+    emerging_hotspots: list[HotspotRecommendation]
+
+
