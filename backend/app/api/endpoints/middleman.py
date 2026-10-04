@@ -10,6 +10,7 @@ router = APIRouter()
 
 
 @router.post("/adapt", response_model=AdaptResponse)
+@router.post("/middleman/adapt", response_model=AdaptResponse)
 async def adapt_innovation(request: AdaptRequest):
     """
     Moduł Middleman Innowacji (Asystent AI):
