@@ -67,6 +67,36 @@ class TestSearchResilienceAndGibberish:
         assert first["similarity_score"] >= 0.2
         assert first["status"] == "sprawdzone"
 
+    def test_user_screenshot_query_seniors_in_municipality(self):
+        """Zapytanie ze screenshotu użytkownika o samotnych seniorach w gminie musi zwrócić trafne innowacje."""
+        payload = {
+            "problem_description": "W naszej gminie osoby starsze mieszkające samotnie rzadko wychodzą z domu. Szukamy sposobu na regularne spotkania, budowanie relacji sąsiedzkich i wsparcie w codziennych sprawach.",
+            "threshold": 0.2,
+            "limit": 4,
+        }
+        response = client.post("/api/match", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_found"] >= 1
+        assert len(data["matches"]) >= 1
+        assert any("senior" in (m["title"] + m["description"]).lower() for m in data["matches"])
+        # AI powinno wygenerować why_relevant
+        assert data["matches"][0]["why_relevant"] is not None
+
+    def test_user_screenshot_query_disabilities_and_caregivers(self):
+        """Zapytanie ze screenshotu użytkownika o osobach z niepełnosprawnościami musi zwrócić trafne innowacje."""
+        payload = {
+            "problem_description": "Osoby z niepełnosprawnościami i ich opiekunowie mają trudność z dotarciem do lokalnych usług. Chcemy ograniczyć bariery i zapewnić dostępne wsparcie blisko domu.",
+            "threshold": 0.2,
+            "limit": 4,
+        }
+        response = client.post("/api/match", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_found"] >= 1
+        assert len(data["matches"]) >= 1
+        assert data["matches"][0]["why_relevant"] is not None
+
     def test_get_single_innovation_public_success(self):
         """Endpoint GET /api/innovations/{id} zwraca pojedynczą innowację."""
         response = client.get("/api/innovations/inv_01")

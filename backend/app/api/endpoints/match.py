@@ -4,8 +4,7 @@ from typing import List, Any, Optional, Set
 from fastapi import APIRouter, HTTPException, Request
 from app.db.supabase import get_supabase_client
 from app.models.schemas import MatchRequest, MatchResponse, MatchItem
-from app.services.ai import create_embedding
-from app.services.query_validator import is_gibberish
+from app.services.ai import create_embedding, evaluate_query_with_gemini, tailor_relevance_with_gemini
 from app.utils.helpers import to_str, to_float
 from app.utils.sanitize import sanitize_text, safe_error_message
 
@@ -43,11 +42,13 @@ POLISH_STOPWORDS: Set[str] = {
 @router.post("/match", response_model=MatchResponse)
 async def match_problem(request: MatchRequest, req: Request):
     """
-    Obligatoryjny moduł Matchmakingu (Wyszukiwarka Semantyczno-Hybrydowa):
-    1. Filtruje bełkot i losowe znaki klawiatury (is_gibberish), chroniąc przed halucynacjami.
-    2. Wylicza zbuforowany embedding wektorowy (1536D) i odpytuje bazę pgvector (match_innovations).
+    Obligatoryjny moduł Matchmakingu (Wyszukiwarka Semantyczno-Hybrydowa AI):
+    1. Inteligentna ocena zapytania przez Gemini (evaluate_query_with_gemini):
+       Gemini rozpoznaje bełkot, ocenia czy potrzeba dotyczy sfery społecznej i formułuje poradę.
+    2. Wylicza embedding wektorowy (1536D) i odpytuje bazę pgvector (match_innovations).
     3. Stosuje hybrydowe wzmocnienie leksykalne (Hybrid Lexical Boost) dla kluczowych słów w tytule/kategorii.
-    4. Zwraca wyłącznie sprawdzone innowacje ROPS Kraków, a przy braku dopasowań – ustrukturyzowane porady.
+    4. Gemini dynamicznie generuje spersonalizowane uzasadnienia dopasowania (why_relevant) dla problemu użytkownika.
+    5. Zwraca wyłącznie sprawdzone innowacje ROPS Kraków, a przy braku dopasowań – ustrukturyzowane porady AI.
     """
     query_text = sanitize_text(request.problem_description.strip())
     if len(query_text) < 3:
@@ -56,19 +57,32 @@ async def match_problem(request: MatchRequest, req: Request):
             detail="Opis problemu musi zawierać co najmniej 3 znaki.",
         )
 
-    # 1. Ochrona przed bełkotem i keyboard mash (np. 'awdawdawdawd', 'asdfghjkl')
-    gibberish_detected, reason = is_gibberish(query_text)
-    if gibberish_detected:
+    # 1. Ocena zapytania przez Google Gemini AI (decyduje AI, zero sztywnych ograniczeń)
+    ai_eval = evaluate_query_with_gemini(query_text)
+    is_gibberish = ai_eval.get("is_gibberish", False)
+    is_social = ai_eval.get("is_social_problem", True)
+    ai_advice = ai_eval.get("advice")
+    ai_categories = ai_eval.get("suggested_categories")
+    if not ai_categories:
+        ai_categories = AVAILABLE_ROPS_CATEGORIES
+
+    if is_gibberish or not is_social:
+        category_prefix = f" w wybranej kategorii '{request.category}'" if request.category else ""
+        fallback_advice = (
+            f"Wprowadzony opis nie przypomina opisu wyzwania społecznego{category_prefix}. "
+            "Opisz problem prostymi słowami (np. 'samotność seniorów', 'brak dostępności architektonicznej', 'wykluczenie transportowe') "
+            "lub wybierz jedną z rekomendowanych kategorii tematycznych ROPS."
+        )
+        final_advice = ai_advice or fallback_advice
+        if request.category and request.category not in final_advice:
+            final_advice = f"Nie znaleziono innowacji spełniających kryteria w kategorii '{request.category}'. {final_advice}"
+
         return MatchResponse(
             matches=[],
             query=query_text,
             total_found=0,
-            no_match_advice=(
-                f"Wprowadzony opis nie przypomina opisu wyzwania społecznego ({reason}). "
-                "Opisz problem prostymi słowami (np. 'samotność seniorów', 'brak dostępności architektonicznej', 'wykluczenie transportowe') "
-                "lub wybierz jedną z rekomendowanych kategorii tematycznych ROPS."
-            ),
-            suggested_categories=AVAILABLE_ROPS_CATEGORIES,
+            no_match_advice=final_advice,
+            suggested_categories=ai_categories,
             can_submit_as_new_challenge=True,
         )
 
@@ -186,7 +200,18 @@ async def match_problem(request: MatchRequest, req: Request):
     scored_items.sort(key=lambda x: x.similarity_score if x.similarity_score is not None else 0.0, reverse=True)
     matches = scored_items[:limit]
 
-    # 5. Obsługa braku dopasowań: ustrukturyzowana pomoc i rekomendacje
+    # 5. Dynamiczne generowanie spersonalizowanych uzasadnień (why_relevant) przez Gemini AI
+    if matches:
+        tailored_whys = tailor_relevance_with_gemini(
+            query=query_text,
+            items=[{"id": m.id, "title": m.title, "description": m.description} for m in matches],
+        )
+        if tailored_whys:
+            for m in matches:
+                if m.id in tailored_whys and tailored_whys[m.id]:
+                    m.why_relevant = tailored_whys[m.id]
+
+    # 6. Obsługa braku dopasowań: ustrukturyzowana pomoc i rekomendacje AI
     no_match_advice = None
     suggested_cats = None
     if len(matches) == 0:
@@ -201,7 +226,7 @@ async def match_problem(request: MatchRequest, req: Request):
                 "Rekomendujemy: (1) doprecyzowanie opisu problemu (grupa docelowa, lokalizacja, potrzeby), "
                 "(2) obniżenie progu dopasowania, lub (3) zgłoszenie problemu jako nowej fiszki wyzwania do zaopiniowania przez ROPS Kraków."
             )
-        suggested_cats = AVAILABLE_ROPS_CATEGORIES
+        suggested_cats = ai_categories if ("Seniorzy" in ai_categories) else AVAILABLE_ROPS_CATEGORIES
 
     return MatchResponse(
         matches=matches,

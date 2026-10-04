@@ -48,32 +48,29 @@ def is_gibberish(text: str) -> Tuple[bool, Optional[str]]:
         return True, "Wprowadzony tekst nie zawiera żadnych liter."
 
     letters_str = "".join(letters).lower()
+    words = [w for w in re.findall(r"\b[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+\b", clean) if len(w) >= 1]
+
+    # Jeśli tekst zawiera wiele normalnych słów (zdanie), nie jest bezsensownym ciągiem klawiszy
+    if len(words) >= 3:
+        return False, None
 
     # 2. Powtórzony ten sam znak 4+ razy (np. 'aaaaa', '......')
     if re.search(r"(.)\1{3,}", clean.lower()):
         return True, "Wykryto nienaturalne powtórzenie tych samych znaków."
 
-    # 3. Powtórzone podciągi (np. 'awd' w 'awdawdawdawd' lub 'qwe' w 'qweqweqwe')
+    # 3. Powtórzone podciągi w krótkim pojedynczym ciągu (np. 'awd' w 'awdawdawdawd' lub 'qwe' w 'qweqweqwe')
     if len(clean) >= 6 and re.search(r"(.{2,4})\1{2,}", clean.lower()):
         return True, "Wykryto zapętlony, powtarzający się wzorzec klawiatury."
 
-    # 4. Proporcja unikalnych znaków do długości (dla ciągów >= 8 znaków)
-    # Bełkot typu 'awdawdawdawd' ma 13 znaków, ale tylko 3 unikalne litery (ratio = 0.23)
-    if len(letters_str) >= 8:
-        unique_ratio = len(set(letters_str)) / len(letters_str)
-        if unique_ratio < 0.35:
-            return True, "Wprowadzony ciąg znaków charakteryzuje się zbyt małym zróżnicowaniem liter."
-
-    # 5. Sprawdzenie samogłosek w długich tokenach (w języku polskim słowo >= 6 liter bez samogłoski to bełkot)
-    words = re.findall(r"\b[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+\b", clean)
+    # 4. Sprawdzenie samogłosek w długich pojedynczych tokenach (w języku polskim słowo >= 6 liter bez samogłoski to bełkot)
     for word in words:
         if len(word) >= 6:
             vowels_count = sum(1 for c in word if c in POLISH_VOWELS)
             if vowels_count == 0:
                 return True, f"Słowo '{word}' nie zawiera żadnych samogłosek i przypomina losowy ciąg znaków."
 
-    # 6. Typowe wzorce keyboard mash w pojedynczym tokenie bez spacji
-    if len(words) == 1 and len(clean) >= 8:
+    # 5. Typowe wzorce keyboard mash w pojedynczym tokenie bez spacji
+    if len(words) == 1 and len(clean) >= 6:
         for pattern in KEYBOARD_MASH_PATTERNS:
             if pattern in clean.lower():
                 return True, "Wykryto sekwencję przypadkowych klawiszy klawiatury."

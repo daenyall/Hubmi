@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import math
 import re
@@ -426,3 +427,158 @@ def generate_adaptation_plan(
         "generation_source": "template_fallback",
         "disclaimer": "Plan wygenerowano na podstawie ustandaryzowanego szablonu adaptacyjnego ROPS Kraków (brak aktywnego połączenia z modelem AI). Dane budżetowe i grantowe mają charakter poglądowy.",
     }
+
+
+def evaluate_query_with_gemini(query: str) -> Dict[str, Any]:
+    """
+    Wykorzystuje Google Gemini do semantycznej i kontekstowej analizy zapytania użytkownika w wyszukiwarce HubMI.
+    To model AI decyduje:
+    1. Czy tekst jest bełkotem / losowym ciągiem znaków (is_gibberish).
+    2. Czy tekst dotyczy rzeczywistego problemu/wyzwania społecznego (is_social_problem).
+    3. Jakie kategorie ROPS odpowiadają potrzebie (suggested_categories).
+    4. Podsumowanie intencji użytkownika (intent_summary).
+    5. Spersonalizowana rada i informacja zwrotna (advice).
+    """
+    clean_query = " ".join(query.strip().split())
+    if not clean_query:
+        return {
+            "is_gibberish": True,
+            "is_social_problem": False,
+            "intent_summary": "Puste zapytanie.",
+            "suggested_categories": [],
+            "advice": "Wprowadzony opis nie przypomina opisu wyzwania społecznego. Prosimy o wpisanie opisu problemu społecznego.",
+        }
+
+    # 1. Próba odpytania Gemini AI
+    if settings.GEMINI_API_KEY:
+        prompt = f"""Jesteś inteligentnym modułem klasyfikacji i doradztwa w wyszukiwarce innowacji społecznych ROPS Kraków (HubMI).
+Twoim zadaniem jest przeanalizowanie tekstu wpisanego przez użytkownika w polu opisu problemu.
+
+Oceń:
+1. `is_gibberish` (bool): True jeśli tekst to losowe klepanie w klawiaturę (np. "awdawdawdawd", "asdfghjkl", powtórzone znaki, bełkot bez sensownych słów), False jeśli tekst składa się z czytelnych słów.
+2. `is_social_problem` (bool): True jeśli tekst dotyczy wyzwania społecznego, problemu mieszkańców, seniorów, osób z niepełnosprawnościami, wykluczenia, edukacji, zdrowia, integracji lub rozwoju społeczności lokalnej. False jeśli tekst pyta o rzeczy całkowicie niezwiązane (np. "ile kosztuje pizza hawajska", "opony do traktora", spam komercyjny) lub jest bełkotem.
+3. `intent_summary` (str): Krótkie podsumowanie zidentyfikowanej potrzeby (1 zdanie po polsku).
+4. `suggested_categories` (list of str): Lista 1-3 pasujących kategorii z listy: ["Seniorzy", "Dostępność", "Zdrowie psychiczne", "Włączenie cyfrowe", "Usługi publiczne", "Integracja społeczna", "Młodzież", "Pomoc społeczna", "Wsparcie rodziny"].
+5. `advice` (str): Profesjonalna, życzliwa porada dla użytkownika po polsku. Jeśli tekst to bełkot (np. losowe litery) lub brak słów, w advice ZAWSZE zawrzyj sformułowanie "Wprowadzony opis nie przypomina opisu wyzwania społecznego" oraz podpowiedz prosty przykład (np. samotność seniorów, brak dostępności architektonicznej, wykluczenie transportowe). Jeśli tekst dotyczy tematu niezwiązanego ze sprawami społecznymi, wyjaśnij to uprzejmie i skieruj na tematykę ROPS. Jeśli tekst jest poprawnym problemem społecznym, krótko potwierdź intencję.
+
+Zwróć WYŁĄCZNIE obiekt JSON o schemacie:
+{{
+  "is_gibberish": false,
+  "is_social_problem": true,
+  "intent_summary": "...",
+  "suggested_categories": ["..."],
+  "advice": "..."
+}}
+
+TEKST UŻYTKOWNIKA:
+"{clean_query}"
+"""
+        for model_name in ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"]:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "responseMimeType": "application/json",
+                        "temperature": 0.1,
+                    },
+                }
+                res = requests.post(url, json=payload, timeout=6)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        text_part = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                        parsed = json.loads(text_part)
+                        return {
+                            "is_gibberish": bool(parsed.get("is_gibberish", False)),
+                            "is_social_problem": bool(parsed.get("is_social_problem", True)),
+                            "intent_summary": str(parsed.get("intent_summary", clean_query)),
+                            "suggested_categories": list(parsed.get("suggested_categories", [])),
+                            "advice": str(parsed.get("advice", "")),
+                        }
+            except Exception as e:
+                logger.warning("Gemini query evaluation error with model %s: %s", model_name, e)
+
+    # 2. Bezpieczny fallback (gdyby API było niedostępne offline)
+    from app.services.query_validator import is_gibberish
+    gibberish_flag, gibberish_reason = is_gibberish(clean_query)
+    if gibberish_flag:
+        return {
+            "is_gibberish": True,
+            "is_social_problem": False,
+            "intent_summary": "Nierozpoznany ciąg znaków.",
+            "suggested_categories": [],
+            "advice": (
+                f"Wprowadzony opis nie przypomina opisu wyzwania społecznego ({gibberish_reason or 'wykryto losowe znaki'}). "
+                "Opisz problem prostymi słowami (np. 'samotność seniorów', 'brak dostępności architektonicznej', 'wykluczenie transportowe') "
+                "lub wybierz jedną z rekomendowanych kategorii tematycznych ROPS."
+            ),
+        }
+
+    return {
+        "is_gibberish": False,
+        "is_social_problem": True,
+        "intent_summary": clean_query,
+        "suggested_categories": ["Seniorzy", "Dostępność", "Usługi publiczne"],
+        "advice": "Wyszukiwanie pasujących innowacji społecznych w bazie ROPS Kraków...",
+    }
+
+
+def tailor_relevance_with_gemini(query: str, items: List[dict]) -> Dict[str, str]:
+    """
+    Generuje spersonalizowane uzasadnienia 'why_relevant' dla znalezionych innowacji ROPS
+    w oparciu o specyficzne potrzeby wskazane przez użytkownika w zapytaniu.
+    Zwraca słownik: {id_innowacji: "uzasadnienie why_relevant"}.
+    """
+    if not settings.GEMINI_API_KEY or not items:
+        return {}
+
+    try:
+        mini_items = [
+            {
+                "id": str(it.get("id")),
+                "title": str(it.get("title")),
+                "description": str(it.get("description", ""))[:200],
+            }
+            for it in items[:4]
+        ]
+        prompt = f"""Dla poniższego problemu użytkownika:
+"{query}"
+
+Oraz listy innowacji ROPS Kraków:
+{json.dumps(mini_items, ensure_ascii=False)}
+
+Dla każdej innowacji napisz dokładnie jedno zwięzłe, rzeczowe zdanie po polsku (why_relevant), wyjaśniające jak to konkretne rozwiązanie bezpośrednio odpowiada na zgłoszoną przez użytkownika potrzebę.
+Zwróć wyłącznie JSON w formacie:
+[
+  {{"id": "...", "why_relevant": "..."}}
+]
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={settings.GEMINI_API_KEY}"
+        res = requests.post(
+            url,
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "responseMimeType": "application/json",
+                    "temperature": 0.2,
+                },
+            },
+            timeout=4,
+        )
+        if res.status_code == 200:
+            parsed = res.json()
+            candidates = parsed.get("candidates", [])
+            if candidates:
+                text_part = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                arr = json.loads(text_part)
+                if isinstance(arr, list):
+                    return {
+                        str(item["id"]): str(item["why_relevant"])
+                        for item in arr
+                        if isinstance(item, dict) and "id" in item and "why_relevant" in item
+                    }
+    except Exception as e:
+        logger.warning("Tailor relevance with Gemini error: %s", e)
+    return {}
