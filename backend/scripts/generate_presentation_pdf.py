@@ -8,11 +8,11 @@ Format: 16:9 (960 x 540 pt)
 
 import sys
 import textwrap
-from reportlab.lib import colors
-from reportlab.lib.colors import HexColor
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfgen import canvas
+from reportlab.lib import colors  # type: ignore
+from reportlab.lib.colors import HexColor  # type: ignore
+from reportlab.pdfbase import pdfmetrics  # type: ignore
+from reportlab.pdfbase.ttfonts import TTFont  # type: ignore
+from reportlab.pdfgen import canvas  # type: ignore
 
 # Czcionki z polskimi znakami
 FONT_REGULAR = "Arial"
