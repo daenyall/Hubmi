@@ -32,9 +32,10 @@ export interface Submission {
 }
 export interface Innovation {
   id: string; title: string; description: string; target_group: string; source_url: string | null;
+  demonstrative: boolean; source_label: string | null;
 }
 export const SUBMISSION_COLUMNS = "id,user_id,title,problem_description,solution_description,target_group,implementation_stage,institution_name,applicant_type,matched_innovation_id,status,created_at";
-export const INNOVATION_COLUMNS = "id,title,description,target_group,source_url";
+export const INNOVATION_COLUMNS = "id,title,description,target_group,source_url,is_demonstrative,source_label";
 export const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 export const isInnovationId = (value: string) => /^[a-z0-9_-]{1,200}$/i.test(value) && !/^demo-/i.test(value);
 
@@ -100,7 +101,7 @@ export function parseInnovation(value: unknown): Innovation {
     if (!["http:", "https:"].includes(url.protocol)) throw new Error("Niepoprawne źródło innowacji.");
     source = url.href;
   } else if (item.source_url !== null && item.source_url !== undefined) throw new Error("Niepoprawne źródło innowacji.");
-  return { id: item.id, title: item.title, description: item.description, target_group: item.target_group, source_url: source };
+  return { id: item.id, title: item.title, description: item.description, target_group: item.target_group, source_url: source, demonstrative: item.is_demonstrative === true, source_label: typeof item.source_label === "string" ? item.source_label.trim() || null : null };
 }
 
 export function formatDate(date: string): string {

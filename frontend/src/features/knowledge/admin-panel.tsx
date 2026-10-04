@@ -16,8 +16,8 @@ import { createKnowledgeAdminService, knowledgeAdminMessage, type SaveResult } f
 import { ResourcesAdminSection } from "./resources-admin";
 import { roleFromVerifiedUser } from "@/features/rops/access";
 
-/** Publikacja w obecnym backendzie ustawia wyłącznie status; nie ukrywa pozostałych rekordów. */
-const VISIBILITY_NOTE = "Publikacja ustawia wyłącznie status „sprawdzone”. Publiczny katalog i wyszukiwanie dopasowań pokazują domyślnie tylko rekordy sprawdzone, ale publiczne API nadal zwraca szkice, gdy ktoś zapyta o nie wprost. Wersja „Nowa” i „W weryfikacji” nie jest więc treścią prywatną.";
+/** Publikacja udostępnia rekord publicznie; szkice odczytuje autoryzowany panel ROPS. */
+const VISIBILITY_NOTE = "Publikacja ustawia status „sprawdzone” i udostępnia innowację w publicznym katalogu oraz dopasowaniach. Wersje „Nowa” i „W weryfikacji” są dostępne wyłącznie w panelu ROPS.";
 
 type Feedback = { message: string; error: boolean } | null;
 

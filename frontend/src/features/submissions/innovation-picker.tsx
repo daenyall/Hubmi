@@ -1,5 +1,6 @@
 "use client";
 import { useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingMessage, StatusMessage } from "@/components/status-message";
 import { createSubmissionsService } from "./service";
@@ -12,6 +13,8 @@ export function LinkedInnovation({ id }: { id: string }) {
   if (state.status === "error") return <StatusMessage error>{state.message}</StatusMessage>;
   return <div className="space-y-2 rounded-xl border border-border bg-secondary p-[16px]">
     <h3 className="text-lg font-semibold">{state.data.title}</h3>
+    {state.data.demonstrative && <Badge variant="outline" className="h-auto min-h-7 max-w-full whitespace-normal">Wzorzec demonstracyjny — nie rekord z bazy ROPS</Badge>}
+    {state.data.source_label && <p className="text-sm text-muted-foreground">Pochodzenie: {state.data.source_label}</p>}
     <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.data.description}</p>
     <p className="text-sm"><span className="font-semibold">Odbiorcy: </span>{state.data.target_group}</p>
     {state.data.source_url && <a href={state.data.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-primary underline underline-offset-4">Zobacz źródło<span className="sr-only"> (otwiera się w nowej karcie)</span></a>}
