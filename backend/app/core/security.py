@@ -18,6 +18,7 @@ def get_current_user(
     authorization: Optional[str] = Header(None),
     x_admin_role: Optional[str] = Header(None, alias="X-Admin-Role"),
     x_rops_key: Optional[str] = Header(None, alias="X-ROPS-Key"),
+    x_test_user_id: Optional[str] = Header(None, alias="X-Test-User-Id"),
 ) -> UserSession:
     """
     Weryfikuje tożsamość użytkownika na podstawie kryptograficznie zweryfikowanego tokena Supabase JWT.
@@ -31,8 +32,16 @@ def get_current_user(
     """
     is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
 
-    # 1. Dopuszczenie nagłówka testowego X-Admin-Role WYŁĄCZNIE podczas testów jednostkowych (pytest)
+    # 1. Dopuszczenie nagłówka testowego X-Admin-Role oraz X-Test-User-Id WYŁĄCZNIE podczas testów jednostkowych (pytest)
     if is_test_runner:
+        if x_test_user_id:
+            role = "rops_admin" if x_admin_role in ("rops_admin", "admin", "mentor") else "applicant"
+            return UserSession(
+                user_id=x_test_user_id,
+                email=f"{x_test_user_id}@test.malopolska.pl",
+                role=role,
+                is_admin=(role == "rops_admin"),
+            )
         if x_admin_role in ("rops_admin", "admin", "mentor"):
             return UserSession(
                 user_id="admin-rops-001",
@@ -47,6 +56,7 @@ def get_current_user(
                 role="applicant",
                 is_admin=False,
             )
+
 
 
     # 2. Tajny klucz serwisowy serwera ROPS (np. dla zadań cron / service_role)

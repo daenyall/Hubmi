@@ -210,3 +210,90 @@ Backend posiada włączone wsparcie dla:
   ```
   *Uwaga: Przy `total_reviews == 0`, pole `recommendation_percentage` wynosi `0.0%` (nie sugeruje 100% poleceń).*
 
+---
+
+### E. Generator Wniosków Grantowych (Załącznik nr 3 ROPS Kraków)
+Wzór: *Załącznik nr 3 do Ogłoszenia projektu „Inkubator Włączenia Społecznego 2.0” (Działanie 5.1 FERS 2021-2027)*
+
+#### 1. Lista Dostępnych Naborów i Wzorów
+- **Metoda i URL**: `GET /api/grant-calls` oraz `GET /api/grant-calls/{call_id}`
+- **Response (200 OK)**:
+  ```json
+  [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "name": "Inkubator Włączenia Społecznego 2.0 – Nabór Pomysłów na Innowacje Społeczne (ROPS Kraków)",
+      "template_name": "za._3._Formularz_aplikacyjny_wzor.pdf",
+      "template_version": "1.0",
+      "status": "demonstracyjny",
+      "description": "Oficjalny wzór naboru grantowego na innowacje społeczne...",
+      "max_grant_amount": 100000.0,
+      "max_prep_months": 3,
+      "max_test_months": 9
+    }
+  ]
+  ```
+
+#### 2. Tworzenie i Trwały Zapis Roboczego Wniosku (Draft)
+- **Tworzenie**: `POST /api/grant-applications` (wymaga nagłówka `Authorization: Bearer <jwt>`)
+- **Request Body**:
+  ```json
+  {
+    "call_id": "c0000000-0000-0000-0000-000000000001",
+    "title": "Mobilna Kawiarnia Senioralna w Małopolsce",
+    "applicant_type": "osoba_fizyczna",
+    "applicant_data": {
+      "first_name": "Jan",
+      "last_name": "Kowalski",
+      "email": "jan.kowalski@example.com",
+      "phone": "+48 12 345 67 89",
+      "address": { "street": "ul. Krakowska 1", "postal_code": "30-001", "city": "Kraków" }
+    }
+  }
+  ```
+- **Zapis roboczy / aktualizacja**: `PUT /api/grant-applications/{application_id}`
+  *(Autor może aktualizować dowolne sekcje wniosku w trakcie pracy. Złożony wniosek zostaje zablokowany przed modyfikacją).*
+
+#### 3. Moje Wnioski (Izolacja Danych Autorów)
+- **Metoda i URL**: `GET /api/grant-applications/my`
+- **Nagłówek**: `Authorization: Bearer <jwt>`
+- **Response**: Zwraca wyłącznie wnioski należące do zalogowanego użytkownika (`user_id = auth.uid()`). Próba odczytu lub edycji cudzego wniosku zwraca `403 Forbidden`.
+
+#### 4. Oficjalne Złożenie Wniosku w Naborze
+- **Metoda i URL**: `POST /api/grant-applications/{application_id}/submit`
+- **Walidacje**:
+  1. **Stan naboru**: jeśli nabór ma stan `"zamkniety"`, zwracany jest błąd `400 Bad Request` z blokadą zgłoszeń.
+  2. **Kompletność**: weryfikacja wypełnienia sekcji 1–8 oraz 11.
+  3. **Zgodność kosztów (Pkt 9 i 10)**: suma pozycji budżetowych w planie działania (`prep_period` + `test_period`) MUSI być dokładnie równa `grant_amount`. W przypadku różnicy zwracany jest błąd `422 Unprocessable Entity` z kwotą różnicy.
+  4. **Świadome potwierdzenie oświadczeń (Pkt 12)**: pole `declarations.all_confirmed` musi wynosić `true` (odpowiedzialność karna art. 297 § 1 k.k.).
+- **Response (200 OK)**: Wniosek ze statusem `"zlozony"` oraz polem `submitted_at`.
+
+#### 5. Podgląd i Eksport Wniosku (Wydruk / PDF)
+- **Metoda i URL**: `GET /api/grant-applications/{application_id}/export` (oraz `/preview`)
+- **Response (200 OK)**:
+  ```json
+  {
+    "application_id": "...",
+    "call_name": "Inkubator Włączenia Społecznego 2.0 (ROPS Kraków)",
+    "template_name": "za._3._Formularz_aplikacyjny_wzor.pdf",
+    "template_version": "1.0",
+    "status": "zlozony",
+    "submitted_at": "2026-10-04T02:40:00Z",
+    "structured_data": { ... },
+    "formatted_document_text": "================================================================================\nZAŁĄCZNIK NR 3 DO OGŁOSZENIA\nFORMULARZ APLIKACYJNY – INKUBATOR WŁĄCZENIA SPOŁECZNEGO 2.0\n...\n"
+  }
+  ```
+  *(Pole `formatted_document_text` zawiera sformatowaną, pełną treść wniosku gotową do wyświetlenia w oknie podglądu lub bezpośredniego wydruku).*
+
+#### 6. Panel Administratora ROPS Kraków
+- **Lista wszystkich wniosków**: `GET /api/admin/grant-applications` (filtry: `call_id`, `status`)
+- **Szczegóły wniosku**: `GET /api/admin/grant-applications/{application_id}`
+- **Ocena i zmiana statusu**: `PATCH /api/admin/grant-applications/{application_id}/status`
+  ```json
+  {
+    "status": "zaakceptowany",
+    "rops_notes": "Rekomendacja Komisji Oceny Innowacji: pozytywna."
+  }
+  ```
+
+
