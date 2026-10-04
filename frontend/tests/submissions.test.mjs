@@ -29,6 +29,12 @@ const id = '33333333-3333-4333-8333-333333333333';
 const draft = { ...model.EMPTY_DRAFT, title: ' Pomysł ', problem_description: ' Potrzeba ', solution_description: ' Rozwiązanie ', target_group: ' Odbiorcy ', implementation_stage: 'pomysl' };
 const record = { ...model.submissionPayload(draft, id), user_id: owner, status: 'nowe', created_at: '2026-10-03T12:00:00Z' };
 const innovation = { id: 'inv_01', title: 'Innowacja testowa', description: 'Opis', target_group: 'Odbiorcy', source_url: null };
+test('powiązana innowacja zachowuje pochodzenie i oznaczenie demonstracyjności', () => {
+  const result = model.parseInnovation({ ...innovation, is_demonstrative: true, source_label: 'Wzorzec demonstracyjny ROPS' });
+  assert.equal(result.demonstrative, true);
+  assert.equal(result.source_label, 'Wzorzec demonstracyjny ROPS');
+  assert.equal(model.parseInnovation(innovation).demonstrative, false);
+});
 const ok = (data) => ({ data, error: null });
 const err = (code) => ({ data: null, error: { code } });
 function fixture(responses = [], user = owner) {
