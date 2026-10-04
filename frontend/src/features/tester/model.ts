@@ -5,7 +5,7 @@ export const TESTER_TYPES = ["JST", "CUS", "NGO", "Mieszkaniec", "Inna"] as cons
 export const SCOPE_LABELS: Record<string, string> = {
   warsztaty: "Warsztaty", pilotaz_1m: "Pilotaż — 1 miesiąc", pilotaz_3m: "Pilotaż — 3 miesiące", wdrozenie_pelne: "Pełne wdrożenie",
 };
-/** Statusy z opisu TestApplicationStatusUpdate. Backend nie waliduje wartości, więc frontend wysyła tylko te. */
+/** Statusy dozwolone przez TestApplicationStatusUpdate; inne wartości backend odrzuca (422). */
 export const APPLICATION_STATUS_LABELS: Record<string, string> = {
   nowe: "Nowe", zaakceptowane: "Zaakceptowane", w_trakcie: "W trakcie", zakonczone: "Zakończone", odrzucone: "Odrzucone",
 };
@@ -109,7 +109,12 @@ const bool = (v: unknown, f: string): boolean => { if (typeof v !== "boolean") t
 export interface Application {
   id: string; innovation_id: string; tester_type: string; institution_name: string; contact_person: string;
   contact_email: string; contact_phone: string | null; testing_scope: string; target_audience_count: number;
-  status: string; notes: string | null; created_at: string | null; updated_at: string | null;
+  status: string;
+  /** Uwagi zgłaszającego z formularza zgłoszenia. ROPS ich nie edytuje. */
+  notes: string | null;
+  /** Notatka ROPS z PATCH statusu; null, gdy jej nie ma (także gdy backend nie zwraca pola). */
+  rops_notes: string | null;
+  created_at: string | null; updated_at: string | null;
 }
 export function parseApplication(v: unknown): Application {
   if (!isRecord(v)) throw new Error("Niepoprawne zgłoszenie testowe.");
@@ -118,7 +123,7 @@ export function parseApplication(v: unknown): Application {
     institution_name: str(v.institution_name, "institution_name"), contact_person: str(v.contact_person, "contact_person"),
     contact_email: str(v.contact_email, "contact_email"), contact_phone: optStr(v.contact_phone, "contact_phone"),
     testing_scope: str(v.testing_scope, "testing_scope"), target_audience_count: int(v.target_audience_count, "target_audience_count"),
-    status: str(v.status, "status"), notes: optStr(v.notes, "notes"),
+    status: str(v.status, "status"), notes: optStr(v.notes, "notes"), rops_notes: optStr(v.rops_notes, "rops_notes"),
     created_at: optStr(v.created_at, "created_at"), updated_at: optStr(v.updated_at, "updated_at"),
   };
 }
@@ -178,10 +183,7 @@ export function parseGlobalSummary(v: unknown): GlobalSummary {
   };
 }
 
-/**
- * Bez ocen backend zwraca średnie 0 i rekomendację 100% — to nie są wyniki.
- * Widok pokazuje liczby tylko wtedy, gdy istnieje co najmniej jedna opinia.
- */
+/** Bez opinii średnie 0 nie są wynikiem — liczby pokazujemy od pierwszej opinii. */
 export function ratingLines(s: FeedbackSummary): string[] | null {
   if (s.total === 0) return null;
   const f = (n: number) => n.toLocaleString("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
@@ -192,4 +194,17 @@ export function ratingLines(s: FeedbackSummary): string[] | null {
     `${RATING_LABELS.rating_accessibility}: ${f(s.accessibility)} / 5`,
     `Poleca innym: ${s.recommend_pct.toLocaleString("pl-PL")}% opinii`,
   ];
+}
+
+/** Pusta notatka i jej brak to ten sam stan. */
+export function sameNote(a: string | null | undefined, b: string | null | undefined): boolean {
+  return (a ?? "").trim() === (b ?? "").trim();
+}
+
+/**
+ * Wartość rops_notes do PATCH: undefined, gdy notatka się nie zmieniła (backend jej wtedy nie rusza),
+ * "" przy wyczyszczeniu istniejącej notatki, w pozostałych przypadkach tekst po przycięciu.
+ */
+export function ropsNoteChange(current: string | null, edited: string): string | undefined {
+  return sameNote(current, edited) ? undefined : edited.trim();
 }

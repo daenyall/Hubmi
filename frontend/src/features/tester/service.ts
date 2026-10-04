@@ -1,6 +1,6 @@
 import { BackendCallError, createBackendSession, detailOf, httpCallError, type CallResult } from "../rops/backend-session";
 import {
-  APPLICATION_STATUS_LABELS, applicationPayload, feedbackPayload, parseApplication, parseApplications, parseFeedback,
+  APPLICATION_STATUS_LABELS, applicationPayload, sameNote, feedbackPayload, parseApplication, parseApplications, parseFeedback,
   parseFeedbackSummary, parseGlobalSummary, validateApplication, validateFeedback,
   type Application, type ApplicationDraft, type Feedback, type FeedbackDraft, type FeedbackSummary, type GlobalSummary,
 } from "./model";
@@ -62,14 +62,27 @@ export function createTesterService(session = createBackendSession()) {
       if (filters.innovation_id) p.set("innovation_id", filters.innovation_id);
       return read(`/api/testing/applications?${p}`, parseApplications, "rops", "zgłoszenia testowe", signal);
     },
-    /** Zmiana statusu potwierdzona ponownym odczytem rekordu. */
-    async updateStatus(id: string, status: string, notes: string, signal?: AbortSignal): Promise<Application> {
+    /**
+     * Zmiana statusu i notatki ROPS, potwierdzona ponownym odczytem rekordu. Wysyłamy wyłącznie
+     * rops_notes — nigdy notes — i tylko gdy notatka się zmieniła (`ropsNote` z ropsNoteChange).
+     * Odczyt sprawdza też, że uwagi zgłaszającego pozostały bez zmian.
+     */
+    async updateStatus(app: Pick<Application, "id" | "notes">, status: string, ropsNote: string | undefined, signal?: AbortSignal): Promise<Application> {
       if (!(status in APPLICATION_STATUS_LABELS)) throw new BackendCallError("validation", "Wybierz status z listy.");
-      const body = { status, ...(notes.trim() ? { notes: notes.trim() } : {}) };
-      const result = await session.call(`/api/testing/applications/${encodeURIComponent(id)}/status`, { method: "PATCH", body }, "rops", signal);
-      if (!result.ok) throw httpCallError(result.status, true, "status pilotażu");
-      const fresh = await read(`/api/testing/applications/${encodeURIComponent(id)}`, parseApplication, "rops", "zgłoszenie testowe", signal);
-      if (fresh.status !== status) throw new BackendCallError("response", `Ponowny odczyt pokazał status „${APPLICATION_STATUS_LABELS[fresh.status] ?? fresh.status}”. Odśwież listę przed ponowieniem.`);
+      if (ropsNote !== undefined && ropsNote.length > 5000) throw new BackendCallError("validation", "Notatka ROPS: maksymalnie 5000 znaków.");
+      const body = { status, ...(ropsNote !== undefined ? { rops_notes: ropsNote } : {}) };
+      const path = `/api/testing/applications/${encodeURIComponent(app.id)}`;
+      const result = await session.call(`${path}/status`, { method: "PATCH", body }, "rops", signal);
+      if (!result.ok) {
+        const detail = result.status === 400 ? detailOf(result) : "";
+        throw detail ? new BackendCallError("validation", `${detail}${KEEP}`) : httpCallError(result.status, true, "status pilotażu");
+      }
+      const fresh = await read(path, parseApplication, "rops", "zgłoszenie testowe", signal);
+      const problems: string[] = [];
+      if (fresh.status !== status) problems.push(`status „${APPLICATION_STATUS_LABELS[fresh.status] ?? fresh.status}”`);
+      if (ropsNote !== undefined && !sameNote(fresh.rops_notes, ropsNote)) problems.push("inną notatkę ROPS");
+      if (!sameNote(fresh.notes, app.notes)) problems.push("zmienione uwagi zgłaszającego");
+      if (problems.length) throw new BackendCallError("response", `Ponowny odczyt pokazał ${problems.join(" i ")}. Odśwież listę przed ponowieniem.`);
       return fresh;
     },
   };

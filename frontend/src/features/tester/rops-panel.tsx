@@ -9,7 +9,7 @@ import { RopsBackendGate } from "@/features/rops/backend-gate";
 import { backendCallMessage } from "@/features/rops/backend-session";
 import { useBackendQuery } from "@/features/rops/use-backend-query";
 import { formatDate } from "@/features/submissions/model";
-import { APPLICATION_STATUS_LABELS, SCOPE_LABELS, label, ratingLines, type Application } from "./model";
+import { APPLICATION_STATUS_LABELS, SCOPE_LABELS, label, ratingLines, ropsNoteChange, type Application } from "./model";
 import { createTesterService } from "./service";
 
 const SELECT = "min-h-12 w-full rounded-lg border border-input bg-card px-[12px] py-3 text-base";
@@ -17,7 +17,7 @@ const SELECT = "min-h-12 w-full rounded-lg border border-input bg-card px-[12px]
 function StatusForm({ app, onSaved }: { app: Application; onSaved: (a: Application) => void }) {
   const id = useId();
   const [status, setStatus] = useState(app.status in APPLICATION_STATUS_LABELS ? app.status : "nowe");
-  const [notes, setNotes] = useState(app.notes ?? "");
+  const [note, setNote] = useState(app.rops_notes ?? "");
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<{ error: boolean; message: string } | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -28,8 +28,14 @@ function StatusForm({ app, onSaved }: { app: Application; onSaved: (a: Applicati
     const controller = new AbortController();
     request.current = controller; setPending(true); setFeedback(null);
     try {
-      const saved = await createTesterService().updateStatus(app.id, status, notes, controller.signal);
-      if (!controller.signal.aborted) { onSaved(saved); setFeedback({ error: false, message: `Zapisano i potwierdzono status „${label(APPLICATION_STATUS_LABELS, saved.status)}”.` }); }
+      const change = ropsNoteChange(app.rops_notes, note);
+      const saved = await createTesterService().updateStatus(app, status, change, controller.signal);
+      if (!controller.signal.aborted) {
+        onSaved(saved);
+        setNote(saved.rops_notes ?? "");
+        const noteText = change === undefined ? "" : change ? " Notatka ROPS zapisana." : " Notatka ROPS usunięta.";
+        setFeedback({ error: false, message: `Zapisano i potwierdzono status „${label(APPLICATION_STATUS_LABELS, saved.status)}”.${noteText} Uwagi zgłaszającego bez zmian.` });
+      }
     } catch (error) {
       if (!controller.signal.aborted) setFeedback({ error: true, message: backendCallMessage(error) });
     } finally {
@@ -42,8 +48,8 @@ function StatusForm({ app, onSaved }: { app: Application; onSaved: (a: Applicati
       <div className="max-w-sm space-y-2"><label htmlFor={`${id}-s`} className="block text-sm font-semibold">Status</label>
         <select id={`${id}-s`} value={status} onChange={(e) => { setStatus(e.target.value); setFeedback(null); }} className={SELECT}>{Object.entries(APPLICATION_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
       <div className="space-y-2"><label htmlFor={`${id}-n`} className="block text-sm font-semibold">Notatka ROPS (opcjonalnie)</label>
-        <p id={`${id}-nh`} className="text-sm text-muted-foreground">Zastępuje pole „Uwagi” zgłoszenia — backend przechowuje jedno pole notatek dla zgłaszającego i ROPS.</p>
-        <textarea id={`${id}-n`} aria-describedby={`${id}-nh`} value={notes} rows={3} maxLength={5000} onChange={(e) => { setNotes(e.target.value); setFeedback(null); }} className="block w-full resize-y rounded-lg border border-input bg-background p-[12px] text-base" /></div>
+        <p id={`${id}-nh`} className="text-sm text-muted-foreground">Widoczna tylko dla ROPS. Nie zmienia uwag zgłaszającego. Wyczyść pole i zapisz, aby usunąć notatkę.</p>
+        <textarea id={`${id}-n`} aria-describedby={`${id}-nh`} value={note} rows={3} maxLength={5000} onChange={(e) => { setNote(e.target.value); setFeedback(null); }} className="block w-full resize-y rounded-lg border border-input bg-background p-[12px] text-base" /></div>
     </fieldset>
     {feedback && <StatusMessage error={feedback.error}>{feedback.message}</StatusMessage>}
     <Button type="submit" disabled={pending} className="h-auto min-h-11 whitespace-normal px-[16px] py-2">{pending ? "Zapisujemy…" : "Zapisz status"}</Button>
@@ -72,7 +78,8 @@ function ApplicationItem({ initial, title }: { initial: Application; title: stri
         <dl className="grid gap-3 sm:grid-cols-2">
           <div><dt className="font-semibold">Koordynator</dt><dd>{app.contact_person}</dd></div>
           <div><dt className="font-semibold">Kontakt</dt><dd>{[app.contact_email, app.contact_phone].filter(Boolean).join(", ")}</dd></div>
-          <div className="sm:col-span-2"><dt className="font-semibold">Uwagi</dt><dd className="whitespace-pre-wrap">{app.notes || "brak"}</dd></div>
+          <div className="sm:col-span-2"><dt className="font-semibold">Uwagi zgłaszającego</dt><dd className="whitespace-pre-wrap">{app.notes?.trim() || "brak"}</dd></div>
+          <div className="sm:col-span-2"><dt className="font-semibold">Notatka ROPS</dt><dd className="whitespace-pre-wrap">{app.rops_notes?.trim() || "brak"}</dd></div>
           <div className="sm:col-span-2"><dt className="font-semibold">Numer zgłoszenia</dt><dd><code className="break-all">{app.id}</code></dd></div>
         </dl>
         <div><h4 className="font-semibold">Oceny tej innowacji</h4><InnovationRatings innovationId={app.innovation_id} /></div>
