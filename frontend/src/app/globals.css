@@ -25,6 +25,9 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
+  --color-disabled: var(--disabled-surface);
+  --color-disabled-foreground: var(--disabled-foreground);
+  --color-primary-disabled: var(--primary-disabled);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
@@ -67,6 +70,11 @@
   --border: #d6e0d9;
   --input: #718778;
   --ring: #176348;
+  /* Stany nieaktywne: wygaszone, ale czytelne. Zwykłe opacity-50 dawało 2,35:1
+     na przycisku z komunikatem postępu („Szukamy rozwiązań…”). */
+  --primary-disabled: #4a7865;
+  --disabled-surface: #e8ece9;
+  --disabled-foreground: #52655c;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -102,6 +110,9 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  --primary-disabled: oklch(0.72 0 0);
+  --disabled-surface: oklch(0.30 0 0);
+  --disabled-foreground: oklch(0.78 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

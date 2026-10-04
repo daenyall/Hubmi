@@ -4,11 +4,41 @@ export type { BackendMatchItem as MatchItem, BackendMatchResponse as MatchRespon
 const BACKEND_URL =
   (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000").replace(/\/+$/, "");
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"]);
+
+/**
+ * Publiczne wdrożenie z adresem backendu na localhost nie zadziała: przeglądarka
+ * blokuje treść mieszaną, a użytkownik widzi tylko „nie udało się połączyć”.
+ * Wskazujemy wtedy wprost błąd konfiguracji NEXT_PUBLIC_BACKEND_URL (ustawianej
+ * przed buildem), zamiast tłumaczyć go jako awarię sieci.
+ * Zwraca "" gdy konfiguracja jest poprawna albo gdy nie da się jej ocenić (SSR).
+ */
+export function backendUrlProblem(): string {
+  if (typeof window === "undefined") return "";
+  if (window.location.protocol !== "https:") return "";
+  let host: string;
+  let protocol: string;
+  try {
+    const url = new URL(BACKEND_URL);
+    host = url.hostname;
+    protocol = url.protocol;
+  } catch {
+    return "Adres usługi (NEXT_PUBLIC_BACKEND_URL) jest niepoprawny. Zgłoś to osobie odpowiedzialnej za wdrożenie.";
+  }
+  if (LOCAL_HOSTS.has(host)) {
+    return "Ta wersja aplikacji wskazuje na backend na localhost, więc nie połączy się z usługą. Wymaga publicznego adresu HTTPS w NEXT_PUBLIC_BACKEND_URL i ponownego wdrożenia.";
+  }
+  if (protocol !== "https:") {
+    return "Adres usługi nie używa HTTPS, więc przeglądarka zablokuje połączenie. Wymaga publicznego adresu HTTPS w NEXT_PUBLIC_BACKEND_URL i ponownego wdrożenia.";
+  }
+  return "";
+}
+
 export const USE_MOCK_MATCHING =
   process.env.NEXT_PUBLIC_USE_MOCK_MATCHING === "true";
 export const MATCH_TIMEOUT_MS = 20_000;
 
-type MatchErrorKind = "validation" | "network" | "api" | "response" | "timeout";
+type MatchErrorKind = "validation" | "network" | "api" | "response" | "timeout" | "configuration";
 
 /** FastAPI zwraca detail jako tekst (400) lub listę pól Pydantic (422); listy nie pokazujemy. */
 async function describedValidationError(response: Response): Promise<string> {
@@ -51,6 +81,10 @@ async function requestMatches(
   if (problemDescription.length > MAX_PROBLEM_LENGTH) {
     throw new MatchApiError("validation", `Opis może mieć maksymalnie ${MAX_PROBLEM_LENGTH} znaków. Skróć opis i spróbuj ponownie.`);
   }
+
+  // Tryb mock nie wywołuje backendu, więc jego konfiguracja go nie dotyczy.
+  const configuration = USE_MOCK_MATCHING ? "" : backendUrlProblem();
+  if (configuration) throw new MatchApiError("configuration", configuration);
 
   const controller = new AbortController();
   let timedOut = false;
@@ -225,6 +259,8 @@ export async function adaptInnovation(
   if (municipalityContext.trim().length < 5) {
     throw new Error("Opisz kontekst swojej instytucji, używając co najmniej 5 znaków.");
   }
+  const configuration = backendUrlProblem();
+  if (configuration) throw new Error(configuration);
   const controller = new AbortController();
   const onAbort = () => controller.abort(signal?.reason);
   if (signal?.aborted) onAbort();
@@ -259,13 +295,15 @@ export async function adaptInnovation(
 }
 
 export class BackendApiError extends Error {
-  constructor(public readonly kind: "network" | "api" | "response" | "timeout", message: string, public readonly status?: number) {
+  constructor(public readonly kind: "network" | "api" | "response" | "timeout" | "configuration", message: string, public readonly status?: number) {
     super(message); this.name = "BackendApiError";
   }
 }
 
 /** Publiczny GET z istniejącą konfiguracją backendu i limitem 20 s, także na body. */
 export async function getBackendJson(path: string, signal?: AbortSignal): Promise<unknown> {
+  const configuration = backendUrlProblem();
+  if (configuration) throw new BackendApiError("configuration", configuration);
   const controller = new AbortController();
   const onAbort = () => controller.abort(signal?.reason);
   if (signal?.aborted) onAbort();
@@ -304,6 +342,8 @@ export async function requestBackendJson(
   path: string,
   { method = "GET", body, token, signal }: { method?: string; body?: unknown; token?: string; signal?: AbortSignal } = {},
 ): Promise<BackendResult> {
+  const configuration = backendUrlProblem();
+  if (configuration) throw new BackendApiError("configuration", configuration);
   const controller = new AbortController();
   const onAbort = () => controller.abort(signal?.reason);
   if (signal?.aborted) onAbort();
