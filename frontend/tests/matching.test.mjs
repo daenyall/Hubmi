@@ -415,3 +415,66 @@ test("niepoprawne typy metadanych planu odrzucają odpowiedź", (t) => {
   assert.throws(() => api.parseAdaptResponse({ innovation_title: "I", adaptation_plan: "   " }), /adaptacji/i);
   assert.throws(() => api.parseAdaptResponse(null), /adaptacji/i);
 });
+
+/** Ustawia zastępcze window.location dla sprawdzenia konfiguracji adresu backendu. */
+function withProtocol(t, protocol) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, "window");
+  const previous = globalThis.window;
+  globalThis.window = { location: { protocol } };
+  t.after(() => {
+    if (had) globalThis.window = previous;
+    else delete globalThis.window;
+  });
+}
+
+test("publiczne HTTPS z backendem na localhost zgłasza błąd konfiguracji, nie awarię sieci", (t) => {
+  withProtocol(t, "https:");
+  for (const backend of ["http://localhost:8000", "http://127.0.0.1:8000", "https://localhost:8000"]) {
+    const api = apiFor(t, { backend });
+    assert.match(api.backendUrlProblem(), /localhost/i, backend);
+  }
+});
+
+test("publiczne HTTPS z backendem po HTTP zgłasza błąd konfiguracji", (t) => {
+  withProtocol(t, "https:");
+  const api = apiFor(t, { backend: "http://api.example.org" });
+  assert.match(api.backendUrlProblem(), /HTTPS/, "treść mieszana musi być nazwana wprost");
+});
+
+test("publiczne HTTPS z publicznym backendem HTTPS nie zgłasza problemu", (t) => {
+  withProtocol(t, "https:");
+  const api = apiFor(t, { backend: "https://api.example.org" });
+  assert.equal(api.backendUrlProblem(), "");
+});
+
+test("lokalny dev po HTTP nie zgłasza problemu konfiguracji", (t) => {
+  withProtocol(t, "http:");
+  const api = apiFor(t, { backend: "http://localhost:8000" });
+  assert.equal(api.backendUrlProblem(), "");
+});
+
+test("bez window (SSR) nie oceniamy konfiguracji adresu", (t) => {
+  const api = apiFor(t, { backend: "http://localhost:8000" });
+  assert.equal(api.backendUrlProblem(), "", "render serwerowy nie zna protokołu strony");
+});
+
+test("błąd konfiguracji zatrzymuje matchmaking przed żądaniem", async (t) => {
+  withProtocol(t, "https:");
+  const api = apiFor(t, { backend: "http://localhost:8000" });
+  let called = false;
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = () => { called = true; throw new Error("nie powinno dojść do żądania"); };
+  t.after(() => { globalThis.fetch = previousFetch; });
+  await assert.rejects(
+    () => api.matchProblem({ problem_description: "Samotność seniorów w małej gminie." }),
+    (error) => error.kind === "configuration" && /localhost/i.test(error.message),
+  );
+  assert.equal(called, false, "przy złej konfiguracji nie wysyłamy żądania");
+});
+
+test("tryb mock nie wymaga publicznego adresu backendu", async (t) => {
+  withProtocol(t, "https:");
+  const api = apiFor(t, { mock: "true", backend: "http://localhost:8000" });
+  const result = await api.matchProblem({ problem_description: "Samotność seniorów w małej gminie." });
+  assert.ok(Array.isArray(result.matches), "mock musi działać bez backendu");
+});

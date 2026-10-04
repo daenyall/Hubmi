@@ -49,6 +49,8 @@ export function AdaptationForm({ item }: { item: MatchItem }) {
   const field = useRef<HTMLTextAreaElement>(null);
   useEffect(() => () => request.current?.abort(), []);
   const loading = state.status === "loading";
+  // Pole jest niepoprawne tylko wtedy, gdy to jego treść odrzuciliśmy; awaria usługi nie unieważnia wpisu.
+  const invalid = state.status === "error" && context.trim().length < 5;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,7 +81,7 @@ export function AdaptationForm({ item }: { item: MatchItem }) {
       <summary className="min-h-11 cursor-pointer rounded-sm py-2 font-semibold text-primary">
         Plan adaptacji dla Twojej instytucji
       </summary>
-      <form onSubmit={submit} noValidate className="mt-3 space-y-3">
+      <form onSubmit={submit} noValidate className="mt-3 space-y-3" aria-busy={loading}>
         <label htmlFor={id} className="block text-sm font-semibold">Kontekst Twojej instytucji (wymagane)</label>
         <p id={`${id}-hint`} className="text-sm leading-relaxed text-muted-foreground">
           Opisz miejsce, zasoby i budżet, aby dopasować plan do lokalnych możliwości.
@@ -91,12 +93,13 @@ export function AdaptationForm({ item }: { item: MatchItem }) {
           rows={4}
           value={context}
           readOnly={loading}
-          aria-describedby={`${id}-hint`}
+          aria-invalid={invalid || undefined}
+          aria-describedby={`${id}-hint${state.status === "error" ? ` ${id}-error` : ""}`}
           onChange={(event) => { setContext(event.target.value); setState({ status: "idle" }); }}
           placeholder="Np. mała gmina wiejska, dostępna świetlica i zespół wolontariuszy."
-          className="w-full resize-y rounded-lg border border-input bg-background p-[12px] text-base leading-relaxed"
+          className="w-full resize-y rounded-lg border border-input bg-background p-[12px] text-base leading-relaxed read-only:opacity-75 aria-invalid:border-destructive"
         />
-        {state.status === "error" && <p role="alert" className="text-sm leading-relaxed text-red-900">{state.message}</p>}
+        {state.status === "error" && <p id={`${id}-error`} role="alert" className="text-sm leading-relaxed text-red-900">{state.message}</p>}
         <Button type="submit" disabled={loading} className="h-auto min-h-11 max-w-full whitespace-normal px-[16px] py-2">
           {loading ? "Generujemy plan…" : "Wygeneruj plan adaptacji"}
         </Button>
