@@ -108,7 +108,7 @@ async def list_admin_needs(
     needs, _ = list_community_needs(
         powiat=powiat,
         category=category,
-        status=status_filter,
+        status_filter=status_filter,
         urgency_level=urgency_level,
         search=search,
         limit=limit,
