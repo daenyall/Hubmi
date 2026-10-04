@@ -422,3 +422,115 @@ class NeedsTrendsResponse(BaseModel):
     emerging_hotspots: list[HotspotRecommendation]
 
 
+# ==============================================================================
+# MODELE GENERATORA WNIOSKÓW GRANTOWYCH (ZAŁĄCZNIK NR 3 ROPS KRAKÓW)
+# ==============================================================================
+
+class GrantCallResponse(BaseModel):
+    id: str
+    name: str
+    template_name: str
+    template_version: str
+    status: str  # 'otwarty', 'zamkniety', 'demonstracyjny'
+    description: Optional[str] = None
+    max_grant_amount: float
+    max_prep_months: int
+    max_test_months: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class GrantCallStatusUpdate(BaseModel):
+    status: str = Field(..., description="Nowy status naboru: 'otwarty', 'zamkniety', 'demonstracyjny'")
+
+
+class ActionPlanItem(BaseModel):
+    action_name: str
+    schedule: str
+    cost: float = Field(ge=0.0, description="Koszt działania w PLN")
+    phase: Optional[str] = None
+
+
+class ActionPlan(BaseModel):
+    prep_period: list[ActionPlanItem] = Field(default_factory=list)
+    test_period: list[ActionPlanItem] = Field(default_factory=list)
+
+
+class GrantApplicationCreate(BaseModel):
+    call_id: str = Field(..., description="ID naboru")
+    title: Optional[str] = Field(default="", max_length=255)
+    applicant_type: str = Field(default="osoba_fizyczna", description="'osoba_fizyczna', 'podmiot', 'grupa_nieformalna'")
+    applicant_data: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    innovation_description: Optional[str] = ""
+    innovativeness: Optional[str] = ""
+    problem_diagnosis: Optional[str] = ""
+    target_group_description: Optional[str] = ""
+    expected_change: Optional[str] = ""
+    future_vision: Optional[str] = ""
+    action_plan: Optional[Dict[str, Any]] = Field(default_factory=lambda: {"prep_period": [], "test_period": []})
+    grant_amount: float = Field(default=0.0, ge=0.0)
+    project_team: Optional[str] = ""
+    declarations: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
+class GrantApplicationUpdate(BaseModel):
+    title: Optional[str] = None
+    applicant_type: Optional[str] = None
+    applicant_data: Optional[Dict[str, Any]] = None
+    innovation_description: Optional[str] = None
+    innovativeness: Optional[str] = None
+    problem_diagnosis: Optional[str] = None
+    target_group_description: Optional[str] = None
+    expected_change: Optional[str] = None
+    future_vision: Optional[str] = None
+    action_plan: Optional[Dict[str, Any]] = None
+    grant_amount: Optional[float] = None
+    project_team: Optional[str] = None
+    declarations: Optional[Dict[str, Any]] = None
+
+
+class GrantApplicationResponse(BaseModel):
+    id: str
+    call_id: str
+    call_name: Optional[str] = None
+    call_status: Optional[str] = None
+    user_id: str
+    status: str  # 'roboczy', 'zlozony', 'w_ocenie', 'zaakceptowany', 'odrzucony'
+    applicant_type: str
+    title: str
+    applicant_data: Dict[str, Any]
+    innovation_description: str
+    innovativeness: str
+    problem_diagnosis: str
+    target_group_description: str
+    expected_change: str
+    future_vision: str
+    action_plan: Dict[str, Any]
+    grant_amount: float
+    total_costs_calculated: float = 0.0
+    is_budget_balanced: bool = True
+    project_team: str
+    declarations: Dict[str, Any]
+    submitted_at: Optional[str] = None
+    rops_notes: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class GrantApplicationStatusUpdate(BaseModel):
+    status: str = Field(..., description="Nowy status: 'w_ocenie', 'zaakceptowany', 'odrzucony'")
+    rops_notes: Optional[str] = Field(default=None, description="Notatka urzędowa ROPS")
+
+
+class GrantApplicationExportResponse(BaseModel):
+    application_id: str
+    call_name: str
+    template_name: str
+    template_version: str
+    status: str
+    submitted_at: Optional[str] = None
+    structured_data: Dict[str, Any]
+    formatted_document_text: str
+
+
+
