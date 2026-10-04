@@ -42,6 +42,7 @@ export interface MatchItem {
   tags?: string[];
   /** is_demonstrative z backendu: syntetyczny wzorzec MVP, nie rekord z bazy ROPS. */
   demonstrative?: boolean;
+  source_label?: string;
 }
 
 export interface MatchResponse {
@@ -87,7 +88,7 @@ function parseInnovation(value: unknown): MatchItem {
     typeof value.similarity_score !== "number" || !Number.isFinite(value.similarity_score) ||
     !isText(value.status) || !isSourceUrl(value.source_url) ||
     !isOptionalText(value.description) || !isOptionalText(value.why_relevant) ||
-    !isOptionalText(value.target_group) || !isOptionalText(value.category)
+    !isOptionalText(value.target_group) || !isOptionalText(value.category) || !isOptionalText(value.source_label)
   ) throw new Error("Niepoprawny rekord matchmakingu.");
   return {
     id: value.id.trim(),
@@ -98,6 +99,7 @@ function parseInnovation(value: unknown): MatchItem {
     ...(value.target_group?.trim() ? { audience: value.target_group.trim() } : {}),
     ...(value.category?.trim() ? { tags: [value.category.trim()] } : {}),
     ...(value.is_demonstrative === true ? { demonstrative: true } : {}),
+    ...(value.source_label?.trim() ? { source_label: value.source_label.trim() } : {}),
   };
 }
 

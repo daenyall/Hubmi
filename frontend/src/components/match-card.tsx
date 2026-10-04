@@ -37,6 +37,7 @@ export function MatchCard({
           {item.description && <p className="text-base leading-relaxed text-muted-foreground">{item.description}</p>}
         </CardHeader>
         <CardContent className="flex-1 space-y-5">
+          {item.source_label && <p className="text-sm text-muted-foreground"><span className="font-semibold">Pochodzenie: </span>{item.source_label}</p>}
           {audience && (
             <div className="flex items-start gap-2 text-sm leading-relaxed">
               <Users className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />

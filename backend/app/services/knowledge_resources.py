@@ -368,6 +368,7 @@ def admin_update_resource(
         content_changed = True
     if payload.group_title is not None and payload.group_title.strip() != existing.group_title:
         update_data["group_title"] = payload.group_title.strip()
+        content_changed = True
     if payload.kind is not None and payload.kind.strip() != existing.kind:
         update_data["kind"] = payload.kind.strip()
         content_changed = True
@@ -387,8 +388,11 @@ def admin_update_resource(
     if payload.coverage_scope is not None and payload.coverage_scope.strip() != (existing.coverage_scope or ""):
         update_data["coverage_scope"] = payload.coverage_scope.strip()
         content_changed = True
-    if payload.caveat is not None:
-        update_data["caveat"] = payload.caveat.strip()
+    if "caveat" in payload.model_fields_set:
+        clean_caveat = payload.caveat.strip() or None if payload.caveat is not None else None
+        if clean_caveat != existing.caveat:
+            update_data["caveat"] = clean_caveat
+            content_changed = True
 
     # Zmiana źródła lub treści po wcześniejszej weryfikacji unieważnia weryfikację
     if content_changed and existing.status in ("zweryfikowany", "opublikowany"):
@@ -617,6 +621,10 @@ def admin_delete_resource(
         raise
     except Exception as e:
         logger.warning("Błąd weryfikacji usunięcia zasobu %s: %s", resource_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Nie udało się potwierdzić usunięcia zasobu wiedzy w bazie danych.",
+        )
 
     return {
         "success": True,

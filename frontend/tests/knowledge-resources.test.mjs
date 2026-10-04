@@ -90,7 +90,8 @@ test("ROPS: nowy zasób to zawsze szkic, potwierdzony ponownym odczytem", async 
   const s = fake((path, init) => ({ ok: true, status: init.method === "POST" ? 201 : 200, data: row(), authenticated: true }));
   const r = await createResourceAdminService(s).create(draft());
   assert.equal(r.status, "roboczy");
-  assert.equal(s.calls[0].init.body.status, "roboczy");
+  assert.equal("status" in s.calls[0].init.body, false);
+  for (const audit of ["verified_at", "verified_by", "published_at", "published_by", "created_at", "updated_at"]) assert.equal(audit in s.calls[0].init.body, false);
   assert.equal(s.calls[0].mode, "rops");
   assert.deepEqual(s.calls.map((c) => c.init.method), ["POST", "GET"]);
   const published = fake(() => ({ ok: true, status: 201, data: row({ status: "opublikowany" }), authenticated: true }));
@@ -98,14 +99,17 @@ test("ROPS: nowy zasób to zawsze szkic, potwierdzony ponownym odczytem", async 
 });
 
 test("ROPS: weryfikacja bez notatki, publikacja i wycofanie potwierdzone odczytem", async () => {
-  const v = fake(() => ({ ok: true, status: 200, data: row({ status: "zweryfikowany" }), authenticated: true }));
+  const v = fake(() => ({ ok: true, status: 200, data: row({ status: "zweryfikowany", verified_by: "rops", verified_at: "2026-10-04T11:00:00Z" }), authenticated: true }));
   await createResourceAdminService(v).verify("res_test01");
   assert.deepEqual(v.calls[0].init.body, {}, "notatka trafiłaby do publicznego caveat");
   const pub = fake(() => ({ ok: true, status: 200, data: row({ status: "opublikowany" }), authenticated: true }));
   assert.equal((await createResourceAdminService(pub).publish("res_test01")).status, "opublikowany");
-  const un = fake(() => ({ ok: true, status: 200, data: row({ status: "roboczy" }), authenticated: true }));
+  const un = fake(() => ({ ok: true, status: 200, data: row({ status: "zweryfikowany" }), authenticated: true }));
   await createResourceAdminService(un).unpublish("res_test01");
-  assert.deepEqual(un.calls[0].init, { method: "PUT", body: { status: "roboczy" } });
+  assert.deepEqual(un.calls[0].init, { method: "POST", body: undefined });
+  assert.equal(un.calls[0].path, "/api/admin/knowledge-resources/res_test01/unpublish");
+  assert.equal(v.calls[0].path, "/api/admin/knowledge-resources/res_test01/verify");
+  assert.equal(pub.calls[0].path, "/api/admin/knowledge-resources/res_test01/publish");
   const stale = fake((p, init) => ({ ok: true, status: 200, data: row({ status: init.method === "GET" ? "roboczy" : "opublikowany" }), authenticated: true }));
   await assert.rejects(createResourceAdminService(stale).publish("res_test01"), /publikacji/);
 });
@@ -115,4 +119,47 @@ test("ROPS: 403 dla autora, 422 z przyczyną i zachowaną treścią", async () =
   await assert.rejects(createResourceAdminService(denied).list({}), /nie ma uprawnień/);
   const bad = fake(() => ({ ok: false, status: 422, data: { detail: "Nieprawidłowy adres URL." }, authenticated: true }));
   await assert.rejects(createResourceAdminService(bad).update("res_test01", draft()), /Nieprawidłowy adres URL\. Wpisana treść pozostała/);
+});
+
+
+test("edycja pokazuje cofnięcie do szkicu; potwierdza całą treść bez statusu i audytu", async () => {
+  const changed = { ...draft(), description: "Zmieniona treść po formalnej weryfikacji." };
+  const expected = row({ ...m.resourcePayload(changed), status: "roboczy", verified_at: null, published_at: null });
+  const s = fake(() => ({ ok: true, status: 200, data: expected }));
+  const r = await createResourceAdminService(s).update("res_test01", changed);
+  assert.equal(r.status, "roboczy");
+  assert.equal(r.verified_at, null);
+  assert.deepEqual(s.calls[0].init.body, m.resourcePayload(changed));
+  const stale = fake((p, init) => ({ ok: true, status: 200, data: init.method === "GET" ? row() : expected }));
+  await assert.rejects(createResourceAdminService(stale).update("res_test01", changed), /nie potwierdził/);
+  const wrong = fake(() => ({ ok: true, status: 200, data: row({ id: "inny" }) }));
+  await assert.rejects(createResourceAdminService(wrong).verify("res_test01"), /inny zasób/);
+});
+
+test("usunięcie dotyczy ID i wymaga 404 z ponownego odczytu", async () => {
+  const s = fake((p, init) => init.method === "DELETE"
+    ? { ok: true, status: 200, data: { success: true, id: "res_test01" } }
+    : { ok: false, status: 404, data: null });
+  await createResourceAdminService(s).remove("res_test01");
+  assert.deepEqual(s.calls.map((c) => [c.path, c.init.method, c.mode]), [
+    ["/api/admin/knowledge-resources/res_test01", "DELETE", "rops"],
+    ["/api/admin/knowledge-resources/res_test01", "GET", "rops"],
+  ]);
+  for (const result of [
+    { ok: true, status: 200, data: row() },
+    { ok: false, status: 503, data: null },
+    { ok: false, status: 403, data: null },
+  ]) {
+    const bad = fake((p, init) => init.method === "DELETE" ? { ok: true, status: 200, data: { success: true, id: "res_test01" } } : result);
+    await assert.rejects(createResourceAdminService(bad).remove("res_test01"));
+  }
+  const wrong = fake(() => ({ ok: true, status: 200, data: { success: true, id: "inny" } }));
+  await assert.rejects(createResourceAdminService(wrong).remove("res_test01"), /wybranego zasobu/);
+  assert.equal(wrong.calls.length, 1);
+});
+
+
+test("sam status zweryfikowany bez audytu nie potwierdza formalnej weryfikacji", async () => {
+  const ghost = fake(() => ({ ok: true, status: 200, data: row({ status: "zweryfikowany" }) }));
+  await assert.rejects(createResourceAdminService(ghost).verify("res_test01"), /nie potwierdził: weryfikacji/);
 });
