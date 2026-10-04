@@ -114,4 +114,4 @@ def test_all_comprehensive_edge_cases():
     print("=== ALL 12 CRITICAL EDGE CASES VERIFIED SUCCESSFULLY ===")
 
 if __name__ == "__main__":
-    run_edge_cases()
+    test_all_comprehensive_edge_cases()

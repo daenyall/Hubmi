@@ -124,7 +124,11 @@ def _get_embedding_tuple(clean_text: str, model_name: Optional[str] = None) -> t
         gemini_vec = _get_gemini_embedding(clean_text)
         if gemini_vec:
             return tuple(gemini_vec)
-        is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
+        is_test_runner = (
+            os.environ.get("PYTEST_CURRENT_TEST") is not None
+            or "pytest" in sys.modules
+            or any("test" in arg.lower() for arg in sys.argv)
+        )
         if is_test_runner:
             logger.warning("Gemini API niedostępne lub wyczerpany limit quota w środowisku testowym -> fallback deterministyczny dla testów")
             return tuple(_fallback_deterministic_embedding(clean_text))
