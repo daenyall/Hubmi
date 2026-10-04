@@ -64,3 +64,12 @@ python run.py      # start na http://localhost:8000
 Oba komponenty mają przygotowanych klientów Supabase:
 - **Frontend**: `@supabase/ssr` w `frontend/src/lib/supabase/client.ts` oraz `server.ts`
 - **Backend**: `supabase-py` w `backend/app/db/supabase.py`
+
+---
+
+## 🌐 Publiczne Demo i Dokumentacja Wdrożeniowa
+
+- **Publiczne API (HTTPS)**: [https://blocking-suspension-tractor-samuel.trycloudflare.com](https://blocking-suspension-tractor-samuel.trycloudflare.com)
+- **Swagger UI**: [https://blocking-suspension-tractor-samuel.trycloudflare.com/docs](https://blocking-suspension-tractor-samuel.trycloudflare.com/docs)
+- **Health Check**: [https://blocking-suspension-tractor-samuel.trycloudflare.com/api/health](https://blocking-suspension-tractor-samuel.trycloudflare.com/api/health)
+- **Szczegółowy kosztorys i kontrola dostępu**: [DEPLOYMENT_AND_RESOURCES.md](./DEPLOYMENT_AND_RESOURCES.md) (szacowany koszt eksploatacji regionalnej: ~200-360 PLN/miesięcznie).
