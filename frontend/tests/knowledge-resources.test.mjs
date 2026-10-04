@@ -6,51 +6,39 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
+// Zasoby pochodzą z trwałej tabeli knowledge_resources. Atrapa sesji testuje logikę, nie integrację.
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const cache = join(root, "node_modules", ".cache");
 mkdirSync(cache, { recursive: true });
 const output = mkdtempSync(join(cache, "hubmi-resources-tests-"));
-const target = join(output, "resources.js");
-writeFileSync(target, ts.transpileModule(readFileSync(join(root, "src", "features/knowledge/resources.ts"), "utf8"), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-}).outputText);
+for (const name of [
+  "lib/matching", "lib/api", "lib/supabase/config", "lib/supabase/client",
+  "features/submissions/model", "features/submissions/service", "features/rops/access", "features/rops/backend-session",
+  "features/knowledge/resources", "features/knowledge/resource-model", "features/knowledge/resource-service",
+]) {
+  const dest = join(output, `${name}.js`);
+  mkdirSync(dirname(dest), { recursive: true });
+  writeFileSync(dest, ts.transpileModule(readFileSync(join(root, "src", `${name}.ts`), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText);
+}
 after(() => rmSync(output, { recursive: true, force: true }));
 const require = createRequire(import.meta.url);
-const { RESOURCE_GROUPS, isSafeResourceUrl } = require(target);
+const { isSafeResourceUrl } = require(join(output, "features/knowledge/resources.js"));
+const m = require(join(output, "features/knowledge/resource-model.js"));
+const { createResourceAdminService } = require(join(output, "features/knowledge/resource-service.js"));
 
-const items = RESOURCE_GROUPS.flatMap((group) => group.items);
-
-test("brief ROPS ma trzy zadeklarowane grupy zasobów", () => {
-  assert.deepEqual(RESOURCE_GROUPS.map((group) => group.id), ["mapa-wyzwan", "raporty-diagnozy", "materialy-edukacyjne"]);
-  for (const group of RESOURCE_GROUPS) {
-    assert.ok(group.title.trim(), `grupa ${group.id} wymaga tytułu`);
-    assert.ok(group.intro.trim(), `grupa ${group.id} wymaga wprowadzenia`);
-    assert.ok(group.items.length > 0, `grupa ${group.id} nie może być pusta`);
-  }
+const row = (over = {}) => ({
+  id: "res_test01", title: "Raport testowy", description: "Opis testowy dłuższy niż dziesięć znaków.", group_id: "raporty-diagnozy",
+  group_title: "Raporty i diagnozy społeczne", kind: "Dokument PDF", url: "https://rops.krakow.pl/a.pdf", year: 2025,
+  coverage_scope: "woj. małopolskie", caveat: null, status: "roboczy", verified_by: null, verified_at: null,
+  published_by: null, published_at: null, created_at: "2026-10-04T10:00:00+00:00", updated_at: "2026-10-04T10:00:00+00:00", ...over,
 });
-
-test("każdy zasób ma nazwę, opis oparty na źródle, rodzaj i adres", () => {
-  for (const item of items) {
-    assert.ok(item.id.trim(), "zasób wymaga identyfikatora");
-    assert.ok(item.title.trim(), `${item.id}: brak nazwy`);
-    assert.ok(item.kind.trim(), `${item.id}: brak rodzaju materiału`);
-    assert.ok(item.description.trim().length >= 60, `${item.id}: opis jest zbyt krótki, by pochodził ze źródła`);
-    assert.ok(item.url.trim(), `${item.id}: brak adresu`);
-  }
-});
-
-test("identyfikatory zasobów są unikalne", () => {
-  assert.equal(new Set(items.map((item) => item.id)).size, items.length);
-});
-
-test("wszystkie adresy prowadzą do rops.krakow.pl po HTTPS, bez danych logowania", () => {
-  for (const item of items) {
-    assert.ok(isSafeResourceUrl(item.url), `${item.id}: adres nie jest bezpiecznym HTTPS`);
-    const parsed = new URL(item.url);
-    assert.equal(parsed.protocol, "https:", `${item.id}: wymagane HTTPS`);
-    assert.equal(parsed.hostname, "rops.krakow.pl", `${item.id}: dozwolona wyłącznie domena ROPS`);
-  }
-});
+const draft = () => ({ ...m.emptyResourceDraft(), title: "Raport testowy", description: "Opis testowy dłuższy niż dziesięć znaków.", url: "https://rops.krakow.pl/a.pdf", year: "2025", coverage_scope: "woj. małopolskie" });
+function fake(handler) {
+  const calls = [];
+  return { calls, call: async (path, init, mode) => { calls.push({ path, init, mode }); return handler(path, init, mode); } };
+}
 
 test("isSafeResourceUrl odrzuca http, dane logowania i śmieci", () => {
   assert.equal(isSafeResourceUrl("http://rops.krakow.pl/a"), false);
@@ -61,14 +49,70 @@ test("isSafeResourceUrl odrzuca http, dane logowania i śmieci", () => {
   assert.equal(isSafeResourceUrl("https://rops.krakow.pl/badania-analizy-raporty/raporty-z-badan"), true);
 });
 
-test("Mapa Wyzwań Społecznych jest obecna jako osobna grupa", () => {
-  const group = RESOURCE_GROUPS.find((entry) => entry.id === "mapa-wyzwan");
-  assert.ok(group, "brak grupy Mapy Wyzwań Społecznych");
-  assert.ok(group.items.some((item) => /Mapa Wyzwań Społecznych/.test(item.title)));
+test("widok publiczny pokazuje tylko opublikowane zasoby z bezpiecznym adresem", () => {
+  const groups = m.parseGroups([{ id: "raporty-diagnozy", title: "Raporty", intro: "i", items: [
+    row({ id: "a", status: "opublikowany" }), row({ id: "b", status: "roboczy" }), row({ id: "c", status: "zweryfikowany" }),
+    row({ id: "d", status: "opublikowany", url: "http://rops.krakow.pl/x" }),
+  ] }]);
+  assert.deepEqual(groups[0].items.map((r) => r.id), ["a"]);
 });
 
-test("opisy nie obiecują weryfikacji skuteczności innowacji", () => {
-  for (const item of items) {
-    assert.ok(!/(skuteczn|certyfik|gwarant|potwierdzon[ya] jako)/i.test(item.description), `${item.id}: opis sugeruje ocenę skuteczności`);
-  }
+test("parser: rok musi być liczbą całkowitą, brak roku to null", () => {
+  assert.equal(m.parseResource(row({ year: null })).year, null);
+  assert.throws(() => m.parseResource(row({ year: "2025" })), /year/);
+});
+
+test("walidacja wymaga roku, zasięgu ze źródła i HTTPS", () => {
+  const e = m.validateResource(m.emptyResourceDraft(), new Date("2026-10-04"));
+  for (const k of ["title", "description", "url", "year", "coverage_scope"]) assert.ok(e[k], k);
+  assert.deepEqual(m.validateResource(draft(), new Date("2026-10-04")), {});
+  assert.ok(m.validateResource({ ...draft(), year: "2030" }, new Date("2026-10-04")).year, "rok z przyszłości");
+  assert.ok(m.validateResource({ ...draft(), url: "http://rops.krakow.pl/a" }).url);
+  assert.ok(m.validateResource({ ...draft(), coverage_scope: "cała Europa" }).coverage_scope);
+});
+
+test("zasięg ogólnopolski jest rozpoznawany, regionalny nie", () => {
+  assert.equal(m.isNationalScope("ogólnopolski"), true);
+  assert.equal(m.isNationalScope("regionalny i krajowy"), true);
+  assert.equal(m.isNationalScope("woj. małopolskie"), false);
+  assert.equal(m.isNationalScope(null), false);
+});
+
+test("treść zasobu nie zawiera statusu; puste zastrzeżenie to null", () => {
+  const p = m.resourcePayload(draft());
+  assert.equal("status" in p, false);
+  assert.equal(p.year, 2025);
+  assert.equal(p.caveat, null);
+  assert.equal(p.group_title, "Raporty i diagnozy społeczne");
+});
+
+test("ROPS: nowy zasób to zawsze szkic, potwierdzony ponownym odczytem", async () => {
+  const s = fake((path, init) => ({ ok: true, status: init.method === "POST" ? 201 : 200, data: row(), authenticated: true }));
+  const r = await createResourceAdminService(s).create(draft());
+  assert.equal(r.status, "roboczy");
+  assert.equal(s.calls[0].init.body.status, "roboczy");
+  assert.equal(s.calls[0].mode, "rops");
+  assert.deepEqual(s.calls.map((c) => c.init.method), ["POST", "GET"]);
+  const published = fake(() => ({ ok: true, status: 201, data: row({ status: "opublikowany" }), authenticated: true }));
+  await assert.rejects(createResourceAdminService(published).create(draft()), /nie potwierdził/);
+});
+
+test("ROPS: weryfikacja bez notatki, publikacja i wycofanie potwierdzone odczytem", async () => {
+  const v = fake(() => ({ ok: true, status: 200, data: row({ status: "zweryfikowany" }), authenticated: true }));
+  await createResourceAdminService(v).verify("res_test01");
+  assert.deepEqual(v.calls[0].init.body, {}, "notatka trafiłaby do publicznego caveat");
+  const pub = fake(() => ({ ok: true, status: 200, data: row({ status: "opublikowany" }), authenticated: true }));
+  assert.equal((await createResourceAdminService(pub).publish("res_test01")).status, "opublikowany");
+  const un = fake(() => ({ ok: true, status: 200, data: row({ status: "roboczy" }), authenticated: true }));
+  await createResourceAdminService(un).unpublish("res_test01");
+  assert.deepEqual(un.calls[0].init, { method: "PUT", body: { status: "roboczy" } });
+  const stale = fake((p, init) => ({ ok: true, status: 200, data: row({ status: init.method === "GET" ? "roboczy" : "opublikowany" }), authenticated: true }));
+  await assert.rejects(createResourceAdminService(stale).publish("res_test01"), /publikacji/);
+});
+
+test("ROPS: 403 dla autora, 422 z przyczyną i zachowaną treścią", async () => {
+  const denied = fake(() => ({ ok: false, status: 403, data: null, authenticated: true }));
+  await assert.rejects(createResourceAdminService(denied).list({}), /nie ma uprawnień/);
+  const bad = fake(() => ({ ok: false, status: 422, data: { detail: "Nieprawidłowy adres URL." }, authenticated: true }));
+  await assert.rejects(createResourceAdminService(bad).update("res_test01", draft()), /Nieprawidłowy adres URL\. Wpisana treść pozostała/);
 });

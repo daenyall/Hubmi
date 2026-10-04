@@ -67,7 +67,7 @@ test("GET korzysta z konfiguracji i category/limit/offset, także gdy matching u
 test("katalog bez danych i brakujące opcjonalne pola nie tworzą fikcyjnej treści", () => {
   assert.deepEqual(model.parseCatalog([]), []);
   assert.deepEqual(model.parseCatalog([{ id: "id", title: "Nazwa", description: null, target_group: null }]), [
-    { id: "id", title: "Nazwa", description: "", audience: "", category: null, source_url: null, source_invalid: false },
+    { id: "id", title: "Nazwa", description: "", audience: "", category: null, source_url: null, source_invalid: false, demonstrative: false, source_label: "" },
   ]);
 });
 
@@ -157,4 +157,11 @@ test("anulowanie i już anulowany sygnał nie zamieniają się w błąd API", as
   controller.abort(); await rejection;
   await assert.rejects(api.fetchCatalogPage({}, controller.signal), { name: "AbortError" });
   assert.equal(spy.mock.callCount(), 1);
+});
+
+test("rekord oznaczony przez backend jako demonstracyjny niesie oznaczenie do widoku", () => {
+  const [item] = model.parseCatalog([{ id: "inv_01", title: "Wzorzec", is_demonstrative: true, source_label: "ROPS Kraków" }]);
+  assert.equal(item.demonstrative, true);
+  assert.equal(item.source_label, "ROPS Kraków");
+  assert.equal(model.parseCatalog([{ id: "x", title: "Bez pola" }])[0].demonstrative, false);
 });

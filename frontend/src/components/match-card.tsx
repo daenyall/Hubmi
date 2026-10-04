@@ -28,6 +28,9 @@ export function MatchCard({
               Przykład demonstracyjny
             </Badge>
           )}
+          {!demo && item.demonstrative && (
+            <Badge variant="outline" className="h-auto min-h-6 max-w-full whitespace-normal border-amber-300 bg-amber-50 text-amber-950">Wzorzec demonstracyjny — nie rekord z bazy ROPS</Badge>
+          )}
           <CardTitle>
             <h3 className="text-xl font-semibold leading-snug">{item.title}</h3>
           </CardTitle>

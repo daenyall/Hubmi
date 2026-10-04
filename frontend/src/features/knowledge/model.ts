@@ -2,6 +2,8 @@ export const CATALOG_PAGE_SIZE = 50;
 export interface KnowledgeItem {
   id: string; title: string; description: string; audience: string; category: string | null;
   source_url: string | null; source_invalid: boolean;
+  /** Backend: syntetyczny wzorzec MVP, a nie rekord z bazy ROPS. Brak pola = false. */
+  demonstrative: boolean; source_label: string;
 }
 export interface CatalogSnapshot { items: KnowledgeItem[]; nextOffset: number; hasMore: boolean }
 function optionalText(value: unknown): string {
@@ -28,6 +30,7 @@ export function parseCatalog(value: unknown): KnowledgeItem[] {
       id: row.id.trim(), title: row.title.trim(), description: optionalText(row.description),
       audience: optionalText(row.target_group), category: optionalText(row.category) || null,
       source_url: sourceUrl, source_invalid: !!source && !sourceUrl,
+      demonstrative: row.is_demonstrative === true, source_label: optionalText(row.source_label),
     };
   });
   if (new Set(items.map((item) => item.id)).size !== items.length) throw new Error("Powtórzone identyfikatory na stronie katalogu.");

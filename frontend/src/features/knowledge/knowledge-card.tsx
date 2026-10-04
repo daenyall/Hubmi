@@ -9,6 +9,7 @@ export function KnowledgeCard({ item }: { item: KnowledgeItem }) {
   return <article aria-label={item.title} className="h-full min-w-0">
     <Card className="h-full rounded-2xl border border-border shadow-sm ring-0 [--card-spacing:24px]">
       <CardHeader className="space-y-3"><h3 className="text-xl font-semibold leading-snug">{item.title}</h3>
+        {item.demonstrative && <Badge variant="outline" className="h-auto min-h-7 max-w-full whitespace-normal border-amber-300 bg-amber-50 text-amber-950">Wzorzec demonstracyjny — nie rekord z bazy ROPS</Badge>}
         {item.category ? <Badge variant="secondary" className="h-auto min-h-7 max-w-full whitespace-normal">{item.category}</Badge> : <p className="text-sm text-muted-foreground">Kategoria nie została podana.</p>}
       </CardHeader>
       <CardContent className="flex-1 space-y-4">

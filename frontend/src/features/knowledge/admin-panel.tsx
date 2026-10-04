@@ -13,6 +13,7 @@ import {
   type AdminInnovation, type DraftErrors, type InnovationDraft,
 } from "./admin-model";
 import { createKnowledgeAdminService, knowledgeAdminMessage, type SaveResult } from "./admin-service";
+import { ResourcesAdminSection } from "./resources-admin";
 
 /** Publikacja w obecnym backendzie ustawia wyłącznie status; nie ukrywa pozostałych rekordów. */
 const VISIBILITY_NOTE = "Publikacja ustawia wyłącznie status „sprawdzone”. Publiczny katalog i wyszukiwanie dopasowań pokazują domyślnie tylko rekordy sprawdzone, ale publiczne API nadal zwraca szkice, gdy ktoś zapyta o nie wprost. Wersja „Nowa” i „W weryfikacji” nie jest więc treścią prywatną.";
@@ -315,7 +316,8 @@ function AdminPanelBody() {
 function AuthorizedPanel() {
   const { state } = useAuth();
   if (state.status !== "authenticated") return null;
-  return <AdminPanelBody key={`${state.user.id}:${String(state.user.app_metadata?.hubmi_role)}`} />;
+  const key = `${state.user.id}:${String(state.user.app_metadata?.hubmi_role)}`;
+  return <><AdminPanelBody key={key} /><ResourcesAdminSection key={`resources:${key}`} /></>;
 }
 
 export function KnowledgeAdminPanel() {
