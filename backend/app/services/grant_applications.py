@@ -586,9 +586,8 @@ def submit_grant_application(application_id: str, user_id: str) -> GrantApplicat
             f"Wyrównaj kosztorys przed złożeniem wniosku."
         )
 
-    # 4. Świadome potwierdzenie oświadczeń (zarówno all_confirmed jak i poszczególne klucze)
+    # 4. Każde wymagane oświadczenie musi być jawnie potwierdzone; flaga zbiorcza nie wystarcza.
     declarations = row.get("declarations") or {}
-    all_confirmed = bool(declarations.get("all_confirmed", False))
     required_declaration_keys = [
         "criminal_liability",
         "no_double_funding",
@@ -597,12 +596,8 @@ def submit_grant_application(application_id: str, user_id: str) -> GrantApplicat
         "accessibility_dnsh",
         "gdpr",
     ]
-    individual_confirmed = (
-        all(bool(declarations.get(k)) for k in required_declaration_keys)
-        if any(k in declarations for k in required_declaration_keys)
-        else False
-    )
-    if not (all_confirmed or individual_confirmed):
+    individual_confirmed = all(declarations.get(k) is True for k in required_declaration_keys)
+    if not individual_confirmed:
         errors.append(
             "Pkt 12: Wymagane jest świadome potwierdzenie wszystkich oświadczeń prawnych (w tym odpowiedzialności karnej "
             "z art. 297 kk, braku podwójnego finansowania i akceptacji procedur naboru)."

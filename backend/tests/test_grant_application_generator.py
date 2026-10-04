@@ -254,7 +254,7 @@ class TestGrantApplicationGenerator:
                     {"phase": "faza_1", "action_name": "Pilotaż asystentury", "schedule": "luty-czerwiec 2025", "cost": 35000.0}
                 ],
             },  # Suma kosztów: 45 000 PLN, a wnioskowana kwota: 50 000 PLN -> Różnica 5000 PLN!
-            "declarations": {"all_confirmed": True},
+            "declarations": {"all_confirmed": True, **dict.fromkeys(["criminal_liability", "no_double_funding", "accept_procedures", "no_fees", "accessibility_dnsh", "gdpr"], True)},
         }
 
         create_res = client.post(
@@ -332,7 +332,7 @@ class TestGrantApplicationGenerator:
                 "prep_period": [{"action_name": "Wyposażenie sali", "schedule": "marzec 2025", "cost": 15000.0}],
                 "test_period": [{"phase": "faza_1", "action_name": "Cykl 20 warsztatów", "schedule": "kwiecień-czerwiec 2025", "cost": 25000.0}],
             },
-            "declarations": {"all_confirmed": True},
+            "declarations": {"all_confirmed": True, **dict.fromkeys(["criminal_liability", "no_double_funding", "accept_procedures", "no_fees", "accessibility_dnsh", "gdpr"], True)},
         }
 
         create_res = client.post(

@@ -1,21 +1,38 @@
-import os
 import logging
 import re
-from typing import List, Any, Optional, Set
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Optional, Set
 from fastapi import APIRouter, HTTPException, Request
 from app.db.supabase import get_supabase_client
 from app.models.schemas import MatchRequest, MatchResponse, MatchItem
-from app.services.ai import create_embedding, evaluate_query_with_gemini, tailor_relevance_with_gemini
+from app.services.ai import create_embedding, evaluate_query_with_gemini, tailor_relevance_with_gemini, calculate_cosine_similarity
 from app.utils.helpers import to_str, to_float
 from app.utils.sanitize import sanitize_text, safe_error_message
 
-try:
-    from app.main import limiter
-except ImportError:
-    limiter = None
-
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _live_semantic_candidates(supabase, query_vector, category):
+    """Compare current documents in the selected model's space, never old DB vectors."""
+    query = supabase.table("innovations").select(
+        "id,title,description,target_group,category,why_relevant,source_url,status,author_or_institution,is_demonstrative,source_label"
+    ).eq("status", "sprawdzone")
+    if category:
+        query = query.eq("category", category)
+    rows = query.limit(1000).execute().data or []
+
+    def score(row):
+        text = (
+            f"{row.get('title', '')}. Kategoria: {row.get('category', '')}. "
+            f"Grupa docelowa: {row.get('target_group', '')}. "
+            f"Dlaczego warto: {row.get('why_relevant') or ''}. Opis: {row.get('description', '')}"
+        )
+        vector = create_embedding(text)
+        return {**row, "similarity_score": calculate_cosine_similarity(query_vector, vector)}
+
+    with ThreadPoolExecutor(max_workers=4) as workers:
+        return list(workers.map(score, rows))
 
 AVAILABLE_ROPS_CATEGORIES = [
     "Seniorzy",
@@ -41,12 +58,12 @@ POLISH_STOPWORDS: Set[str] = {
 
 
 @router.post("/match", response_model=MatchResponse)
-async def match_problem(request: MatchRequest, req: Request):
+def match_problem(request: MatchRequest, req: Request):
     """
     Obligatoryjny moduł Matchmakingu (Wyszukiwarka Semantyczno-Hybrydowa AI):
     1. Inteligentna ocena zapytania przez Gemini (evaluate_query_with_gemini):
        Gemini rozpoznaje bełkot, ocenia czy potrzeba dotyczy sfery społecznej i formułuje poradę.
-    2. Wylicza embedding wektorowy (1536D) i odpytuje bazę pgvector (match_innovations).
+    2. Wylicza embeddingi zapytania i opublikowanych innowacji w zgodnej przestrzeni (1536D).
     3. Stosuje hybrydowe wzmocnienie leksykalne (Hybrid Lexical Boost) dla kluczowych słów w tytule/kategorii.
     4. Gemini dynamicznie generuje spersonalizowane uzasadnienia dopasowania (why_relevant) dla problemu użytkownika.
     5. Zwraca wyłącznie sprawdzone innowacje ROPS Kraków, a przy braku dopasowań – ustrukturyzowane porady AI.
@@ -113,51 +130,14 @@ async def match_problem(request: MatchRequest, req: Request):
 
     raw_candidates: List[dict] = []
 
-    # 3. Odpytanie procedury RPC match_innovations w Supabase
+    # Current content and query always use the same model, regardless of historical DB vectors.
     try:
-        rpc_limit = max(50, limit * 5)
-        rpc_params: dict[str, Any] = {
-            "query_embedding": query_vector,
-            "match_threshold": max(0.05, threshold - 0.15),
-            "match_count": rpc_limit,
-        }
-        if request.category:
-            rpc_params["filter_category"] = request.category
-
-        try:
-            rpc_res = supabase.rpc("match_innovations", rpc_params).execute()
-        except Exception as rpc_err:
-            if "filter_category" in rpc_params and "filter_category" in str(rpc_err).lower():
-                rpc_params.pop("filter_category")
-                rpc_res = supabase.rpc("match_innovations", rpc_params).execute()
-            else:
-                raise rpc_err
-
-        data: Any = rpc_res.data
-        if isinstance(data, list):
-            for item in data:
-                if isinstance(item, dict):
-                    raw_candidates.append(item)
-
-        is_test_runner = os.environ.get("PYTEST_CURRENT_TEST") is not None
-        if not raw_candidates or (is_test_runner and len(raw_candidates) < 3):
-            # Rezerwowy odczyt innowacji z Supabase przy braku dopasowań wektorowych RPC (np. przy awarii zewnętrznego API wektorów lub w testach)
-            inv_query = supabase.table("innovations").select("*").eq("status", "sprawdzone")
-            if request.category:
-                inv_query = inv_query.eq("category", request.category)
-            inv_res = inv_query.limit(rpc_limit).execute()
-            if inv_res and inv_res.data:
-                existing_ids = {c.get("id") for c in raw_candidates}
-                for item in inv_res.data:
-                    if isinstance(item, dict) and item.get("id") not in existing_ids:
-                        item["similarity_score"] = 0.45
-                        raw_candidates.append(item)
-    except Exception as e:
-        logger.error("RPC match_innovations execution failed: %s", e)
-        raise HTTPException(
-            status_code=502,
-            detail=safe_error_message("wyszukiwanie innowacji"),
-        )
+        raw_candidates = _live_semantic_candidates(supabase, query_vector, request.category)
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Usługa wektoryzacji AI jest chwilowo niedostępna. Spróbuj ponownie za chwilę.")
+    except Exception:
+        logger.exception("Semantic catalogue search failed")
+        raise HTTPException(status_code=502, detail=safe_error_message("wyszukiwanie innowacji"))
 
     # 4. Hybrydowy scoring i filtrowanie
     scored_items: List[MatchItem] = []

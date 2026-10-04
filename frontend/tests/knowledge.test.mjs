@@ -132,14 +132,14 @@ test("nieprawidłowe limit/offset nie wysyłają żądania", async (t) => {
   assert.equal(spy.mock.callCount(), 0);
 });
 
-test("20 sekund przerywa oczekiwanie na nagłówki", async (t) => {
+test("skonfigurowany limit przerywa oczekiwanie na nagłówki", async (t) => {
   const api = client(t); t.mock.timers.enable({ apis: ["setTimeout"] });
   t.mock.method(globalThis, "fetch", abortingFetch);
   const rejection = assert.rejects(api.fetchCatalogPage(), kind("timeout"));
   t.mock.timers.tick(api.MATCH_TIMEOUT_MS); await rejection;
 });
 
-test("20 sekund obejmuje także odczyt body", async (t) => {
+test("skonfigurowany limit obejmuje także odczyt body", async (t) => {
   const api = client(t); t.mock.timers.enable({ apis: ["setTimeout"] });
   let ready; const reading = new Promise((resolve) => { ready = resolve; });
   t.mock.method(globalThis, "fetch", async (_url, { signal }) => ({ ok: true, json: () => {

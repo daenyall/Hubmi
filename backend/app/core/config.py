@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # AI API Keys (OpenAI or Google Gemini)
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
+    GEMINI_GENERATION_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_GENERATION_FALLBACK_MODELS: str = "gemini-3.6-flash,gemini-3.7-flash"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
