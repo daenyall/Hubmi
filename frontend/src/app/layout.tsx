@@ -4,10 +4,10 @@ import { AuthProvider } from "@/features/auth/auth-provider";
 import { SiteHeader, SiteFooter } from "@/components/site-header";
 
 export const metadata: Metadata = {
-  title: "HubMI — innowacje dla potrzeb społecznych",
+  title: "Splot — innowacje dla potrzeb społecznych",
   description:
-    "Opisz potrzebę społeczną i znajdź dopasowane innowacje oraz powiązane materiały z linkami do źródeł. Projekt HubMI na HackYeah 2026.",
-  applicationName: "HubMI",
+    "Opisz potrzebę społeczną i znajdź dopasowane innowacje oraz powiązane materiały z linkami do źródeł. Projekt Splot na HackYeah 2026.",
+  applicationName: "Splot",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

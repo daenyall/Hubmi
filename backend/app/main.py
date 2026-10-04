@@ -12,7 +12,7 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="FastAPI Backend for Hubmi (HackYeah 2026)",
+    description="FastAPI Backend for Splot (HackYeah 2026)",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",

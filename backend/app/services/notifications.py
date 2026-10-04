@@ -127,7 +127,7 @@ def dispatch_webhook(
         "old_status": old_status,
         "new_status": new_status,
         "comment": comment,
-        "source": "Hubmi ROPS Backend",
+        "source": "Splot ROPS Backend",
         "timestamp": time.time(),
     }
 

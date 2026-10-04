@@ -493,7 +493,7 @@ def generate_adaptation_plan(
 
 def evaluate_query_with_gemini(query: str) -> Dict[str, Any]:
     """
-    Wykorzystuje Google Gemini do semantycznej i kontekstowej analizy zapytania użytkownika w wyszukiwarce HubMI.
+    Wykorzystuje Google Gemini do semantycznej i kontekstowej analizy zapytania użytkownika w wyszukiwarce Splot.
     To model AI decyduje:
     1. Czy tekst jest bełkotem / losowym ciągiem znaków (is_gibberish).
     2. Czy tekst dotyczy rzeczywistego problemu/wyzwania społecznego (is_social_problem).
@@ -513,7 +513,7 @@ def evaluate_query_with_gemini(query: str) -> Dict[str, Any]:
 
     # 1. Próba odpytania Gemini AI
     if settings.GEMINI_API_KEY:
-        prompt = f"""Jesteś inteligentnym modułem klasyfikacji i doradztwa w wyszukiwarce innowacji społecznych ROPS Kraków (HubMI).
+        prompt = f"""Jesteś inteligentnym modułem klasyfikacji i doradztwa w wyszukiwarce innowacji społecznych ROPS Kraków (Splot).
 Twoim zadaniem jest przeanalizowanie tekstu wpisanego przez użytkownika w polu opisu problemu.
 
 Oceń:

@@ -4,7 +4,7 @@ import { KnowledgeBrowser } from "@/features/knowledge/browser";
 import { KnowledgeResourceSections } from "@/features/knowledge/resource-sections";
 import { SocialChallengeSections } from "@/features/knowledge/challenge-sections";
 export const metadata: Metadata = {
-  title: "Zasobnik Wiedzy — HubMI",
+  title: "Zasobnik Wiedzy — Splot",
   description: "Przeglądaj dostępne w katalogu innowacje społeczne, odbiorców, kategorie i linki źródłowe.",
 };
 export default function KnowledgePage() {

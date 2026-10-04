@@ -255,7 +255,7 @@ function Loaded({ id }: { id: string }) {
     <div className="space-y-2">
       <p className="text-sm">Nabór: <span className="font-semibold">{call.name}</span></p>
       <p className="text-sm text-muted-foreground">Wzór: {call.template_name}, wersja {call.template_version}</p>
-      {call.template_version !== SUPPORTED_TEMPLATE_VERSION && <StatusMessage error>Ten nabór używa wzoru w wersji {call.template_version}; formularz HubMI obsługuje wersję {SUPPORTED_TEMPLATE_VERSION}. Złożenie jest zablokowane.</StatusMessage>}
+      {call.template_version !== SUPPORTED_TEMPLATE_VERSION && <StatusMessage error>Ten nabór używa wzoru w wersji {call.template_version}; formularz Splot obsługuje wersję {SUPPORTED_TEMPLATE_VERSION}. Złożenie jest zablokowane.</StatusMessage>}
     </div>
     {submitted && <StatusMessage><strong>{call.status === "otwarty" ? "Wniosek złożony w naborze." : "Wniosek demonstracyjny złożony."}</strong> Potwierdziliśmy zmianę statusu ponownym odczytem.{call.status !== "otwarty" && " Nie trafił do oficjalnego konkursu."}</StatusMessage>}
     {app.status === "roboczy" ? (call.status === "zamkniety"

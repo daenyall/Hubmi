@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageFrame } from "@/components/page-frame";
 import { SubmissionCreator } from "@/features/submissions/creator";
 import { CanvasHint } from "@/features/knowledge/canvas-hint";
-export const metadata: Metadata = { title: "Zgłoś pomysł — HubMI" };
+export const metadata: Metadata = { title: "Zgłoś pomysł — Splot" };
 export default async function CreatorPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
   const id = typeof query.innowacja === "string" ? query.innowacja : "";

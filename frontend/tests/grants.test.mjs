@@ -138,7 +138,7 @@ test("serwis: złożenie z błędami 422, nabór zamknięty (400) i brak dostęp
   await assert.rejects(createGrantService(denied).get("id"), (e) => e.kind === "access" && /innego autora/.test(e.message));
   const ghost = fake((p, init) => init.method === "POST" ? { ok: true, status: 200, data: row(), authenticated: true } : { ok: true, status: 200, data: row({ status: "roboczy" }), authenticated: true });
   await assert.rejects(createGrantService(ghost).submit("id"), /nie potwierdził złożenia/);
-  const ok = fake((p, init) => ({ ok: true, status: 200, data: row({ status: "zlozony", submitted_at: "2026-10-04T10:00:00Z" }), authenticated: true }));
+  const ok = fake(() => ({ ok: true, status: 200, data: row({ status: "zlozony", submitted_at: "2026-10-04T10:00:00Z" }), authenticated: true }));
   assert.equal((await createGrantService(ok).submit("id")).status, "zlozony");
 });
 

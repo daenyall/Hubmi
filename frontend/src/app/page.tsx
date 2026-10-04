@@ -12,14 +12,11 @@ export default function Home() {
   return (
       <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 space-y-12 px-[20px] pb-16 pt-12 sm:px-[32px] sm:pt-16">
         <section aria-labelledby="intro-heading" className="max-w-3xl space-y-5">
-          <p className="flex items-center gap-2 text-sm font-semibold text-primary">
-            <span aria-hidden="true" className="size-2 rounded-full bg-primary" /> Innowacje społeczne bliżej ludzi
-          </p>
           <h1 id="intro-heading" className="text-balance text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
             Od potrzeby do <span className="text-primary">konkretnego rozwiązania.</span>
           </h1>
           <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            Szukasz sposobu na lokalny problem społeczny? Opisz go, a HubMI pomoże znaleźć dopasowane innowacje i materiały z dostępnymi źródłami.
+            Szukasz sposobu na lokalny problem społeczny? Opisz go, a Splot pomoże znaleźć dopasowane innowacje i materiały z dostępnymi źródłami.
           </p>
         </section>
 

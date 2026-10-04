@@ -22,7 +22,7 @@ function StartButton({ call }: { call: GrantCall }) {
   const [error, setError] = useState("");
   const active = useRef(false);
   if (call.status === "zamkniety") return <p className="text-sm text-muted-foreground">Nabór zamknięty — nie można rozpocząć wniosku.</p>;
-  if (call.template_version !== SUPPORTED_TEMPLATE_VERSION) return <StatusMessage error>Ten nabór używa wzoru w wersji {call.template_version}, a formularz HubMI obsługuje wersję {SUPPORTED_TEMPLATE_VERSION}. Rozpoczęcie wniosku jest zablokowane do aktualizacji formularza.</StatusMessage>;
+  if (call.template_version !== SUPPORTED_TEMPLATE_VERSION) return <StatusMessage error>Ten nabór używa wzoru w wersji {call.template_version}, a formularz Splot obsługuje wersję {SUPPORTED_TEMPLATE_VERSION}. Rozpoczęcie wniosku jest zablokowane do aktualizacji formularza.</StatusMessage>;
   if (auth.state.status !== "authenticated") return <p className="text-sm"><Link href="/logowanie" className="font-semibold text-primary underline underline-offset-4">Zaloguj się</Link>, aby rozpocząć wniosek. Wniosek zapisuje się na Twoim koncie.</p>;
   async function start() {
     if (active.current) return;

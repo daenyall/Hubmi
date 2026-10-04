@@ -8,7 +8,7 @@ router = APIRouter()
 @router.get("/hello", response_model=MessageResponse)
 async def hello():
     return MessageResponse(
-        message="Hello from Hubmi FastAPI Backend!",
+        message="Hello from Splot FastAPI Backend!",
         data={"version": "1.0.0", "hackathon": "HackYeah 2026"}
     )
 
