@@ -162,20 +162,12 @@ def build_presentation(output_pdf):
 
     deck.c.setFont(FONT_BOLD, 12)
     deck.c.setFillColor(colors.white)
-    deck.c.drawString(45, HEIGHT - 138, "ORGANIZATOR WYZWANIA:")
-    deck.c.setFont(FONT_REGULAR, 10)
-    deck.c.drawString(45, HEIGHT - 158, "Województwo Małopolskie")
-    deck.c.drawString(45, HEIGHT - 174, "Regionalny Ośrodek")
-    deck.c.drawString(45, HEIGHT - 190, "Polityki Społecznej w Krakowie")
-
-    # Informacja o kategorii wyzwania
-    deck.c.setFont(FONT_BOLD, 10.5)
-    deck.c.setFillColor(HexColor("#A7F3D0"))
-    deck.c.drawString(45, 230, "KATEGORIA ZADANIA:")
-    deck.c.setFont(FONT_REGULAR, 9.5)
+    deck.c.drawString(45, 280, "ORGANIZATOR WYZWANIA:")
+    deck.c.setFont(FONT_REGULAR, 10.5)
     deck.c.setFillColor(HexColor("#EAF2ED"))
-    deck.c.drawString(45, 212, "GovTech & Pomoc Społeczna")
-    deck.c.drawString(45, 196, "Innowacje dla Małopolski")
+    deck.c.drawString(45, 256, "Województwo Małopolskie")
+    deck.c.drawString(45, 238, "Regionalny Ośrodek")
+    deck.c.drawString(45, 220, "Polityki Społecznej w Krakowie")
 
     deck.c.setFont(FONT_REGULAR, 8.5)
     deck.c.setFillColor(HexColor("#93C5FD"))
