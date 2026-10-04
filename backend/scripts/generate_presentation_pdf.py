@@ -1,9 +1,9 @@
 """
 Oficjalna 5-slajdowa prezentacja techniczna dla Jury HackYeah 2026.
-Projekt: HubMI (MostMI) — Małopolski Hub Innowacji Społecznych
+Projekt: Splot — Małopolski Hub Innowacji Społecznych
 Wyzwanie: Regionalny Ośrodek Polityki Społecznej w Krakowie (ROPS Kraków)
 Autorzy: Radosław Basta & Daniel Bałuszyński
-Format: 16:9 (960 x 540 pt) — 5 zwięzłych, merytorycznych slajdów.
+Format: 16:9 (960 x 540 pt)
 """
 
 import sys
@@ -23,7 +23,7 @@ pdfmetrics.registerFont(TTFont("Arial", "/System/Library/Fonts/Supplemental/Aria
 pdfmetrics.registerFont(TTFont("Arial-Bold", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"))
 pdfmetrics.registerFont(TTFont("Arial-Italic", "/System/Library/Fonts/Supplemental/Arial Italic.ttf"))
 
-# Paleta instytucjonalna ROPS Kraków / HubMI
+# Paleta instytucjonalna ROPS Kraków / Splot
 PRIMARY = HexColor("#176348")       # Głęboka zieleń ROPS
 PRIMARY_DARK = HexColor("#0F3D2E")  # Ciemna zieleń nagłówkowa
 PRIMARY_LIGHT = HexColor("#EAF2ED") # Jasne tło akcentowe
@@ -83,7 +83,7 @@ class SlideDeck:
         # Treść stopki
         self.c.setFont(FONT_REGULAR, 8)
         self.c.setFillColor(TEXT_MUTED)
-        self.c.drawString(40, 20, "Województwo Małopolskie · ROPS Kraków · HackYeah 2026 | HubMI — Małopolski Hub Innowacji Społecznych")
+        self.c.drawString(40, 20, "Województwo Małopolskie · ROPS Kraków · HackYeah 2026 | Splot — Małopolski Hub Innowacji Społecznych")
         self.c.drawRightString(WIDTH - 40, 20, "Autorzy: Radosław Basta & Daniel Bałuszyński | Działające MVP online")
 
     def draw_card(self, x, y, w, h, bg_color=BG_CARD, border_color=BORDER, radius=8):
@@ -162,28 +162,20 @@ def build_presentation(output_pdf):
 
     deck.c.setFont(FONT_BOLD, 12)
     deck.c.setFillColor(colors.white)
-    deck.c.drawString(45, HEIGHT - 128, "ORGANIZATOR WYZWANIA:")
-    deck.c.setFont(FONT_REGULAR, 9.5)
-    deck.c.drawString(45, HEIGHT - 146, "Województwo Małopolskie")
-    deck.c.drawString(45, HEIGHT - 160, "Regionalny Ośrodek")
-    deck.c.drawString(45, HEIGHT - 174, "Polityki Społecznej w Krakowie")
+    deck.c.drawString(45, HEIGHT - 138, "ORGANIZATOR WYZWANIA:")
+    deck.c.setFont(FONT_REGULAR, 10)
+    deck.c.drawString(45, HEIGHT - 158, "Województwo Małopolskie")
+    deck.c.drawString(45, HEIGHT - 174, "Regionalny Ośrodek")
+    deck.c.drawString(45, HEIGHT - 190, "Polityki Społecznej w Krakowie")
 
-    # Merytoryczne fakty techniczne w lewym panelu
-    facts = [
-        "KOMPLETNY ZAKRES: 7 MODUŁÓW",
-        "314 TESTÓW AUTOMATYCZNYCH (100%)",
-        "PRODUKCYJNA CHMURA SUPABASE",
-        "ZGODNOŚĆ Z ZAŁĄCZNIKIEM NR 3",
-    ]
-    cur_y = 240
-    for text in facts:
-        deck.c.setFillColor(HexColor("#124F3A"))
-        deck.c.roundRect(40, cur_y - 6, 250, 26, 6, fill=1, stroke=0)
-        deck.draw_check_icon(52, cur_y + 1, size=11, color=HexColor("#34D399"))
-        deck.c.setFont(FONT_BOLD, 8)
-        deck.c.setFillColor(HexColor("#F0FDF4"))
-        deck.c.drawString(70, cur_y + 2, text)
-        cur_y -= 36
+    # Informacja o kategorii wyzwania
+    deck.c.setFont(FONT_BOLD, 10.5)
+    deck.c.setFillColor(HexColor("#A7F3D0"))
+    deck.c.drawString(45, 230, "KATEGORIA ZADANIA:")
+    deck.c.setFont(FONT_REGULAR, 9.5)
+    deck.c.setFillColor(HexColor("#EAF2ED"))
+    deck.c.drawString(45, 212, "GovTech & Pomoc Społeczna")
+    deck.c.drawString(45, 196, "Innowacje dla Małopolski")
 
     deck.c.setFont(FONT_REGULAR, 8.5)
     deck.c.setFillColor(HexColor("#93C5FD"))
@@ -195,12 +187,9 @@ def build_presentation(output_pdf):
     deck.c.setFillColor(PRIMARY)
     deck.c.drawString(345, HEIGHT - 72, "MAŁOPOLSKI HUB INNOWACJI SPOŁECZNYCH")
 
-    deck.c.setFont(FONT_BOLD, 38)
+    deck.c.setFont(FONT_BOLD, 42)
     deck.c.setFillColor(PRIMARY_DARK)
-    deck.c.drawString(345, HEIGHT - 118, "HubMI")
-    deck.c.setFont(FONT_BOLD, 18)
-    deck.c.setFillColor(SECONDARY)
-    deck.c.drawString(475, HEIGHT - 108, "· MostMI")
+    deck.c.drawString(345, HEIGHT - 118, "Splot")
 
     deck.c.setFont(FONT_REGULAR, 11)
     deck.c.setFillColor(TEXT_MUTED)
@@ -249,32 +238,32 @@ def build_presentation(output_pdf):
     deck.end_slide()
 
     # =========================================================================
-    # SLAJD 2: KOMPLETNY EKOSYSTEM 7 MODUŁÓW (MAPPING WYZWANIA ROPS)
+    # SLAJD 2: MODUŁY I EKOSYSTEM PLATFORMY SPLOT
     # =========================================================================
-    deck.start_slide("Architektura i Zakres Funkcjonalny: 7 Modułów Platformy", "Zakres Merytoryczny", 2)
+    deck.start_slide("Architektura i Moduły Platformy Splot", "Zakres Merytoryczny", 2)
 
     deck.draw_card(40, 400, WIDTH - 80, 45, bg_color=PRIMARY_LIGHT, border_color=PRIMARY)
     deck.c.setFont(FONT_BOLD, 10)
     deck.c.setFillColor(PRIMARY_DARK)
-    deck.c.drawString(55, 426, "ZGODNOŚĆ Z DOKUMENTACJĄ WYZWANIA ROPS KRAKÓW (SLAJDY 17-23 PREZENTACJI MENTORSKIEJ):")
+    deck.c.drawString(55, 426, "KOMPLEKSOWY EKOSYSTEM WSPARCIA INNOWACJI SPOŁECZNYCH W REGIONIE:")
     deck.c.setFont(FONT_REGULAR, 8.5)
     deck.c.setFillColor(TEXT_MUTED)
-    deck.c.drawString(55, 412, "Zaimplementowano moduł obligatoryjny oraz wszystkie 6 modułów dodatkowych, uzupełnione o analitykę trendów regionalnych.")
+    deck.c.drawString(55, 412, "Połączyliśmy wszystkie kluczowe elementy w jeden spójny obieg — od zgłoszenia potrzeby, przez dobór innowacji i testy, aż po wniosek o grant.")
 
-    # 6 Kart Modułów w układzie 2x3
+    # 6 Kart Modułów w układzie 2x3 w naturalnym, luźniejszym tonie
     modules = [
-        ("I. MATCHMAKING SPOŁECZNY (OBLIGATORIUM)",
-         "Wyszukiwanie hybrydowe: model wektorowy Gemini 1536D + indeks pgvector + podbicie leksykalne. Filtr bełkotu `query_validator` i uzasadnienie dopasowania."),
-        ("II. ZASOBNIK WIEDZY ROPS",
-         "15 zweryfikowanych innowacji ROPS Kraków (pełna proweniencja), interaktywna Mapa Wyzwań Społecznych Małopolski, baza certyfikowanych materiałów."),
-        ("III. KREATOR POMYSŁÓW & WNIOSKI",
-         "Fiszki innowacji z Canwą Społeczną ROPS oraz Generator Wniosków Grantowych zgodny z urzędowym Załącznikiem nr 3 (nabory FERS/EFS+)."),
-        ("IV. TESTER INNOWACJI (PILOTAŻE)",
-         "Zgłaszanie gmin i instytucji do testowania innowacji w terenie, ustrukturyzowana ocena (1-5, kryteria) oraz odrębne, prywatne notatki audytowe ROPS."),
-        ("V. AKTYWNA KOMUNIKACJA",
-         "Bezpieczny, dwustronny wątek wiadomości przypisany do zgłoszenia, oficjalna wiążąca odpowiedź ROPS oraz dziennik audytowy zdarzeń."),
-        ("VI. PANEL ADMINISTRATORA ROPS",
-         "Pulpit koordynatora: moderacja innowacji, weryfikacja wniosków grantowych, zarządzanie testerem, analityka potrzeb i skupisk w powiatach.")
+        ("I. INTELIGENTNE DOPASOWANIE",
+         "Opisujesz problem po swojemu, codziennym językiem. Silnik AI błyskawicznie dobiera sprawdzone innowacje z Małopolski i jasno wyjaśnia, jak mogą pomóc w Twojej okolicy."),
+        ("II. PRAKTYCZNY ZASOBNIK WIEDZY",
+         "15 rzetelnych innowacji ROPS Kraków, interaktywna mapa wyzwań dla regionu oraz proste materiały i dobre praktyki gotowe do wdrożenia od zaraz."),
+        ("III. KREATOR POMYSŁÓW I GRANTY",
+         "Wygodny formularz prowadzi za rękę z podpowiedziami z Canwy ROPS, a generator wniosków automatycznie wypełnia urzędowy Załącznik nr 3 (FERS/EFS+)."),
+        ("IV. TESTOWANIE W GMINACH (PILOTAŻ)",
+         "Każda gmina czy placówka może jednym kliknięciem zgłosić chęć przetestowania innowacji u siebie, sprawdzić ją w boju i dodać recenzję."),
+        ("V. BEZPOŚREDNI CZAT Z ROPS",
+         "Prosty, dwustronny kontakt z koordynatorem przy każdym zgłoszeniu. Szybkie odpowiedzi, zero urzędniczego gubienia pism i jasne ustalenia w jednym miejscu."),
+        ("VI. PANEL DLA ZESPOŁU ROPS",
+         "Przejrzysty pulpit koordynatora: szybki rzut oka na napływające pomysły, ocena wniosków grantowych, pilotaże i bieżące potrzeby Małopolski.")
     ]
 
     card_w = (WIDTH - 80 - 30) / 3
@@ -291,16 +280,16 @@ def build_presentation(output_pdf):
         deck.c.setFillColor(PRIMARY_DARK)
         deck.c.drawString(x + 12, y + card_h - 20, m_title)
 
-        deck.draw_multiline(x + 12, y + card_h - 42, m_desc, width_chars=36, line_height=14)
+        deck.draw_multiline(x + 12, y + card_h - 40, m_desc, width_chars=45, line_height=14)
 
     # Belka dolna: Moduł VII (Middleman AI)
     deck.draw_card(40, 50, WIDTH - 80, 44, bg_color=CARD_DARK, border_color=PRIMARY)
     deck.c.setFont(FONT_BOLD, 9.5)
     deck.c.setFillColor(HexColor("#A7F3D0"))
-    deck.c.drawString(55, 71, "VII. MIDDLEMAN INNOWACJI (ASYSTENT AI):")
+    deck.c.drawString(55, 71, "VII. ASYSTENT ADAPTACJI (MIDDLEMAN AI):")
     deck.c.setFont(FONT_REGULAR, 8.5)
     deck.c.setFillColor(colors.white)
-    deck.c.drawString(335, 71, "Automatyczna rekonstrukcja innowacji do specyfiki lokalnej gminy (budżet, OSP, KGW, granty FERS).")
+    deck.c.drawString(335, 71, "Zamienia ogólny pomysł w konkretny plan działania dla gminy: dobiera partnerów (OSP, KGW), liczy budżet i wskazuje granty.")
 
     deck.end_slide()
 
@@ -494,5 +483,6 @@ def build_presentation(output_pdf):
 
 
 if __name__ == "__main__":
-    out = sys.argv[1] if len(sys.argv) > 1 else "HubMI_Prezentacja_ROPS_Krakow.pdf"
+    out = sys.argv[1] if len(sys.argv) > 1 else "Splot_Prezentacja_ROPS_Krakow.pdf"
     build_presentation(out)
+
