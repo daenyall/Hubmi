@@ -225,7 +225,7 @@ def build_presentation(output_pdf):
     deck.draw_check_icon(378, 74, size=11, color=SUCCESS)
     deck.c.setFont(FONT_BOLD, 8.5)
     deck.c.setFillColor(PRIMARY_DARK)
-    deck.c.drawString(396, 75, "Stan realizacji: Działająca produkcyjna integracja chmurowa · 314/314 testów przechodzi (100%)")
+    deck.c.drawString(396, 75, "Stan realizacji: Działająca produkcyjna integracja chmurowa · 333/333 testów przechodzi (100%)")
 
     deck.end_slide()
 
