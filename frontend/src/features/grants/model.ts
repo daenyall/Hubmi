@@ -269,6 +269,6 @@ export function submitDetail(data: unknown): string[] {
  * demonstracyjnym dopisujemy jednoznaczne zastrzeżenie, zanim plik opuści aplikację.
  */
 export function exportFileText(exp: GrantExport, callStatus: string | null): string {
-  const notice = callStatus === "otwarty" ? "" : "UWAGA: WERSJA DEMONSTRACYJNA HubMI. Ten dokument nie jest wnioskiem złożonym w oficjalnym konkursie ROPS.\n\n";
+  const notice = callStatus === "otwarty" ? "" : "UWAGA: WERSJA DEMONSTRACYJNA Splot. Ten dokument nie jest wnioskiem złożonym w oficjalnym konkursie ROPS.\n\n";
   return notice + exp.text;
 }

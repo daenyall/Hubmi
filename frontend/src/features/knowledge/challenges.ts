@@ -11,7 +11,7 @@
  * Pozostałe lokalne pliki (HubMI-nowy-plan, humbi-wniosek) to nasz plan pracy i formularz
  * naboru ROPS, więc nie są źródłem ustaleń o kondycji regionu.
  */
-export const CHALLENGE_SOURCE = "Brief wyzwania „HubMI.pl”, ROPS Kraków — materiał dla uczestników HackYeah 2026";
+export const CHALLENGE_SOURCE = "Brief wyzwania, ROPS Kraków — materiał dla uczestników HackYeah 2026";
 
 export interface SocialChallenge {
   id: string;

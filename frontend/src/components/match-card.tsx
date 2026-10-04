@@ -72,14 +72,11 @@ export function MatchCard({
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center gap-2 rounded-sm font-semibold text-primary underline underline-offset-4 hover:text-foreground"
             >
-              {resource ? "Otwórz materiał" : "Zobacz źródło"}
               <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
               <span className="sr-only">: {item.title} (otwiera się w nowej karcie)</span>
             </a>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {demo ? "Przykład demonstracyjny — bez źródła." : "Źródło nieudostępnione."}
-            </p>
+            <span className="text-sm text-muted-foreground">Brak źródła</span>
           )}
         </CardFooter>
       </Card>

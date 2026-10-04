@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Hubmi Backend"
+    APP_NAME: str = "Splot Backend"
     ENVIRONMENT: str = "development"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     # AI API Keys (OpenAI or Google Gemini)
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
+    GEMINI_GENERATION_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_GENERATION_FALLBACK_MODELS: str = "gemini-3.6-flash,gemini-3.7-flash"
+
+    @field_validator("APP_NAME", mode="before")
+    @classmethod
+    def normalize_legacy_app_name(cls, value: str) -> str:
+        legacy_names = {"hubmi": "Splot", "hubmi backend": "Splot Backend"}
+        return legacy_names.get(value.strip().casefold(), value)
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

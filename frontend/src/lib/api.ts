@@ -36,7 +36,7 @@ export function backendUrlProblem(): string {
 
 export const USE_MOCK_MATCHING =
   process.env.NEXT_PUBLIC_USE_MOCK_MATCHING === "true";
-export const MATCH_TIMEOUT_MS = 20_000;
+export const MATCH_TIMEOUT_MS = 45_000;
 
 type MatchErrorKind = "validation" | "network" | "api" | "response" | "timeout" | "configuration";
 

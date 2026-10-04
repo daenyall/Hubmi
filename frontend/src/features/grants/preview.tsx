@@ -15,7 +15,7 @@ const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v
 export function CallStatusNotice({ status }: { status: string | null }) {
   if (status === "otwarty") return <StatusMessage><strong>Nabór otwarty.</strong> Złożony wniosek trafia do oceny ROPS w tym naborze.</StatusMessage>;
   if (status === "zamkniety") return <StatusMessage error><strong>Nabór zamknięty.</strong> Nie można rozpocząć ani złożyć wniosku. Zapisane wersje robocze możesz przeglądać i eksportować.</StatusMessage>;
-  return <StatusMessage><strong>Nabór demonstracyjny.</strong> To ćwiczenie na wzorze formularza ROPS. Złożenie zapisuje wniosek w HubMI do wglądu ROPS — <strong>nie jest zgłoszeniem w oficjalnym konkursie</strong> i nie daje prawa do grantu.</StatusMessage>;
+  return <StatusMessage><strong>Nabór demonstracyjny.</strong> To ćwiczenie na wzorze formularza ROPS. Złożenie zapisuje wniosek w Splot do wglądu ROPS — <strong>nie jest zgłoszeniem w oficjalnym konkursie</strong> i nie daje prawa do grantu.</StatusMessage>;
 }
 
 function Applicant({ type, data }: { type: string; data: Record<string, unknown> }) {

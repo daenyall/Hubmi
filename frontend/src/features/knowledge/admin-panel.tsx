@@ -16,8 +16,8 @@ import { createKnowledgeAdminService, knowledgeAdminMessage, type SaveResult } f
 import { ResourcesAdminSection } from "./resources-admin";
 import { roleFromVerifiedUser } from "@/features/rops/access";
 
-/** Publikacja w obecnym backendzie ustawia wyłącznie status; nie ukrywa pozostałych rekordów. */
-const VISIBILITY_NOTE = "Publikacja ustawia wyłącznie status „sprawdzone”. Publiczny katalog i wyszukiwanie dopasowań pokazują domyślnie tylko rekordy sprawdzone, ale publiczne API nadal zwraca szkice, gdy ktoś zapyta o nie wprost. Wersja „Nowa” i „W weryfikacji” nie jest więc treścią prywatną.";
+/** Publikacja udostępnia rekord publicznie; szkice odczytuje autoryzowany panel ROPS. */
+const VISIBILITY_NOTE = "Publikacja ustawia status „sprawdzone” i udostępnia innowację w publicznym katalogu oraz dopasowaniach. Wersje „Nowa” i „W weryfikacji” są dostępne wyłącznie w panelu ROPS.";
 
 type Feedback = { message: string; error: boolean } | null;
 
@@ -297,7 +297,7 @@ function AdminPanelBody() {
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" aria-expanded={editing === item.id} onClick={() => { setEditing(editing === item.id ? null : item.id); setNotice(""); }}
                 className="h-auto min-h-11 whitespace-normal px-[16px] py-2">{editing === item.id ? "Zamknij edycję" : "Edytuj"}</Button>
-              <PublishAction item={item} onPublished={(record) => { setNotice(`Opublikowano „${record.title}” ze statusem „${PUBLISHED_STATUS}”.`); refresh(); }} />
+              {editing !== item.id && <PublishAction item={item} onPublished={(record) => { setNotice(`Opublikowano „${record.title}” ze statusem „${PUBLISHED_STATUS}”.`); refresh(); }} />}
             </div>
             {editing === item.id && <InnovationForm key={item.id} heading={`Edycja: ${item.title}`} initial={draftFromRecord(item)} submitLabel="Zapisz zmiany"
               onCancel={() => setEditing(null)}
@@ -305,6 +305,7 @@ function AdminPanelBody() {
                 const result = await createKnowledgeAdminService().update(item.id, draft, signal);
                 if (result.confirmed) {
                   setNotice(`Zapisano zmiany w „${result.record.title}” (identyfikator: ${result.record.id}). Zapis potwierdzony ponownym odczytem.`);
+                  setEditing(null);
                   refresh();
                 }
                 return result;
