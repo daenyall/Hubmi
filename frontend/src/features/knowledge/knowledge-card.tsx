@@ -13,6 +13,7 @@ export function KnowledgeCard({ item }: { item: KnowledgeItem }) {
         {item.category ? <Badge variant="secondary" className="h-auto min-h-7 max-w-full whitespace-normal">{item.category}</Badge> : <p className="text-sm text-muted-foreground">Kategoria nie została podana.</p>}
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
+        {item.source_label && <p className="text-sm text-muted-foreground"><span className="font-semibold">Pochodzenie: </span>{item.source_label}</p>}
         <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{item.description || "Opis nie został udostępniony."}</p>
         <p className="leading-relaxed"><span className="font-semibold">Odbiorcy: </span>{item.audience || "Grupa odbiorców nie została podana."}</p>
       </CardContent>

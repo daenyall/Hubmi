@@ -30,7 +30,11 @@ export function createResourceAdminService(session = createBackendSession()) {
   async function read(id: string, signal?: AbortSignal): Promise<Resource> {
     const result = await session.call(`${base}/${encodeURIComponent(id)}`, { method: "GET" }, "rops", signal);
     if (!result.ok) throw httpCallError(result.status, false, "zasób wiedzy");
-    try { return parseResource(result.data); } catch { throw new BackendCallError("response", "Usługa zwróciła niepoprawny zasób."); }
+    try {
+      const resource = parseResource(result.data);
+      if (resource.id !== id) throw new Error("Inny rekord");
+      return resource;
+    } catch { throw new BackendCallError("response", "Usługa zwróciła niepoprawny lub inny zasób."); }
   }
   async function write(path: string, method: "POST" | "PUT", body: unknown, subject: string, signal?: AbortSignal): Promise<Resource> {
     const result = await session.call(path, { method, body }, "rops", signal);
@@ -59,29 +63,42 @@ export function createResourceAdminService(session = createBackendSession()) {
     /** Nowy zasób zawsze jako szkic — bez pola status w treści. */
     async create(d: ResourceDraft, signal?: AbortSignal): Promise<Resource> {
       guard(d);
-      const body = { ...resourcePayload(d), status: "roboczy" };
+      const body = resourcePayload(d);
       const saved = await write(base, "POST", body, "nowy zasób", signal);
-      return confirm(saved.id, (r) => r.status === "roboczy" && r.title === body.title && r.url === body.url, "zapisu szkicu", signal);
+      return confirm(saved.id, (r) => r.status === "roboczy" && Object.entries(body).every(([key, value]) => r[key as keyof Resource] === value), "zapisu szkicu", signal);
     },
     async update(id: string, d: ResourceDraft, signal?: AbortSignal): Promise<Resource> {
       guard(d);
       const body = resourcePayload(d);
       await write(`${base}/${encodeURIComponent(id)}`, "PUT", body, "edycja zasobu", signal);
-      return confirm(id, (r) => r.title === body.title && r.url === body.url && r.year === body.year && r.coverage_scope === body.coverage_scope, "zapisu zmian", signal);
+      return confirm(id, (r) => Object.entries(body).every(([key, value]) => r[key as keyof Resource] === value), "zapisu zmian", signal);
     },
     /** Bez notatki: backend dopisuje ją do publicznego pola caveat. */
     async verify(id: string, signal?: AbortSignal): Promise<Resource> {
       await write(`${base}/${encodeURIComponent(id)}/verify`, "POST", {}, "weryfikacja zasobu", signal);
-      return confirm(id, (r) => r.status === "zweryfikowany", "weryfikacji", signal);
+      return confirm(id, (r) => r.status === "zweryfikowany" && !!r.verified_by && !!r.verified_at, "weryfikacji", signal);
     },
     async publish(id: string, signal?: AbortSignal): Promise<Resource> {
       await write(`${base}/${encodeURIComponent(id)}/publish`, "POST", undefined, "publikacja zasobu", signal);
       return confirm(id, (r) => r.status === PUBLISHED, "publikacji", signal);
     },
-    /** Brak osobnej operacji w API — wycofanie to zmiana statusu na szkic przez PUT. */
+    /** Wycofanie zachowuje weryfikację i ukrywa zasób publicznie. */
     async unpublish(id: string, signal?: AbortSignal): Promise<Resource> {
-      await write(`${base}/${encodeURIComponent(id)}`, "PUT", { status: "roboczy" }, "wycofanie publikacji", signal);
-      return confirm(id, (r) => r.status === "roboczy", "wycofania publikacji", signal);
+      await write(`${base}/${encodeURIComponent(id)}/unpublish`, "POST", undefined, "wycofanie publikacji", signal);
+      return confirm(id, (r) => r.status === "zweryfikowany" && r.published_at === null, "wycofania publikacji", signal);
+    },
+    async remove(id: string, signal?: AbortSignal): Promise<void> {
+      const path = `${base}/${encodeURIComponent(id)}`;
+      const result = await session.call(path, { method: "DELETE" }, "rops", signal);
+      if (!result.ok) throw httpCallError(result.status, false, "usunięcie zasobu");
+      const data = result.data;
+      if (!data || typeof data !== "object" || !("success" in data) || data.success !== true || !("id" in data) || data.id !== id) {
+        throw new BackendCallError("response", "Usługa nie potwierdziła usunięcia wybranego zasobu. Odśwież listę.");
+      }
+      const check = await session.call(path, { method: "GET" }, "rops", signal);
+      if (check.status === 404 && !check.ok) return;
+      if (!check.ok) throw httpCallError(check.status, false, "potwierdzenie usunięcia zasobu");
+      throw new BackendCallError("response", "Zasób nadal istnieje. Usunięcie nie zostało potwierdzone.");
     },
   };
 }

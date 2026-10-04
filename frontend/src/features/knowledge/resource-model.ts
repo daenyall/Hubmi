@@ -38,7 +38,7 @@ export function isNationalScope(scope: string | null): boolean {
 export interface Resource {
   id: string; title: string; description: string; group_id: string; group_title: string | null; kind: string; url: string;
   year: number | null; coverage_scope: string | null; caveat: string | null; status: string;
-  verified_at: string | null; published_at: string | null; created_at: string; updated_at: string;
+  verified_by: string | null; verified_at: string | null; published_at: string | null; created_at: string; updated_at: string;
 }
 export interface ResourceGroup { id: string; title: string; intro: string; items: Resource[] }
 
@@ -54,7 +54,7 @@ export function parseResource(v: unknown): Resource {
     id: str(v.id, "id"), title: str(v.title, "title"), description: str(v.description, "description"),
     group_id: str(v.group_id, "group_id"), group_title: optStr(v.group_title, "group_title"), kind: str(v.kind, "kind"),
     url: str(v.url, "url"), year, coverage_scope: optStr(v.coverage_scope, "coverage_scope"), caveat: optStr(v.caveat, "caveat"),
-    status: str(v.status, "status"), verified_at: optStr(v.verified_at, "verified_at"), published_at: optStr(v.published_at, "published_at"),
+    status: str(v.status, "status"), verified_by: optStr(v.verified_by, "verified_by"), verified_at: optStr(v.verified_at, "verified_at"), published_at: optStr(v.published_at, "published_at"),
     created_at: str(v.created_at, "created_at"), updated_at: str(v.updated_at, "updated_at"),
   };
 }

@@ -151,3 +151,7 @@ Scenariusz demonstracji na prawdziwej bazie testowej po wdrożeniu A: autor `/kr
 Wyszukiwanie obejmuje nazwę, opis i odbiorców **tylko pobranych rekordów**. „Wczytaj więcej” rozszerza zakres stronami po 50; nie zakładamy, że pierwsza strona zawiera całą bazę. Kategorie pochodzą z pobranych pozycji i mogą być niepełne, ale wybrany filtr jest przekazywany do serwera. Karty mają bezpieczne źródła HTTP/HTTPS i odnośnik do istniejącego kreatora z ID rzeczywistej innowacji. Brakujące pola są oznaczone; score i status nie są przedstawiane jako skuteczność ani certyfikacja.
 
 Kod: `src/features/knowledge/`. Kontrola klienta i regresji API: `node --test tests/knowledge.test.mjs tests/matching.test.mjs`. Dokładny kontrakt, zakończone kontrole, zakres testów na atrapach i blokada rzeczywistej integracji: [docs/knowledge-verification.md](docs/knowledge-verification.md).
+
+## Etap 6 — integracja Zasobnika i ROPS
+
+Aktualny kontrakt, test rzeczywistego cyklu weryfikacji/publikacji/wycofania/usunięcia, kontrola kont A/B/ROPS i źródeł regionalnych: [raport etapu 6](docs/stage-6-verification.md). Powtarzalny test opt-in: `tests/e2e/knowledge-stage6.mjs`.

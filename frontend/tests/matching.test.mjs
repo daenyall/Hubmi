@@ -478,3 +478,12 @@ test("tryb mock nie wymaga publicznego adresu backendu", async (t) => {
   const result = await api.matchProblem({ problem_description: "Samotność seniorów w małej gminie." });
   assert.ok(Array.isArray(result.matches), "mock musi działać bez backendu");
 });
+
+
+test("backend: oznaczenie demonstracyjne i pochodzenie docierają do kart", () => {
+  const { parseMatchResponse } = require(join(output, "matching.js"));
+  const parsed = parseMatchResponse({ total_found: 1, matches: [{ ...wireItem, is_demonstrative: true, source_label: "  Wzorzec MVP  " }] });
+  assert.equal(parsed.matches[0].demonstrative, true);
+  assert.equal(parsed.matches[0].source_label, "Wzorzec MVP");
+  assert.throws(() => parseMatchResponse({ total_found: 1, matches: [{ ...wireItem, source_label: {} }] }), /Niepoprawny rekord/);
+});

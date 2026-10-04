@@ -41,7 +41,7 @@ function useAction() {
   return { pending, feedback, setFeedback, run };
 }
 
-function ResourceForm({ prefix, initial, submitLabel, onSave }: { prefix: string; initial: ResourceDraft; submitLabel: string; onSave: (d: ResourceDraft, signal: AbortSignal) => Promise<string> }) {
+function ResourceForm({ prefix, initial, submitLabel, onSave, onBusyChange }: { prefix: string; initial: ResourceDraft; submitLabel: string; onSave: (d: ResourceDraft, signal: AbortSignal) => Promise<string>; onBusyChange?: (busy: boolean) => void }) {
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<ResourceErrors>({});
   const action = useAction();
@@ -62,7 +62,11 @@ function ResourceForm({ prefix, initial, submitLabel, onSave }: { prefix: string
     const v = validateResource(draft); setErrors(v);
     const first = RESOURCE_FIELD_ORDER.find((k) => v[k]);
     if (first) { document.getElementById(id(first))?.focus(); return; }
-    void action.run("save", (signal) => onSave(draft, signal));
+    void action.run("save", async (signal) => {
+      onBusyChange?.(true);
+      try { return await onSave(draft, signal); }
+      finally { onBusyChange?.(false); }
+    });
   }
   return <form onSubmit={submit} noValidate aria-busy={action.pending !== ""} className="space-y-5">
     <fieldset disabled={action.pending !== ""} className="min-w-0 space-y-5">
@@ -83,11 +87,15 @@ function ResourceForm({ prefix, initial, submitLabel, onSave }: { prefix: string
   </form>;
 }
 
-function ResourceItem({ initial }: { initial: Resource }) {
+function ResourceItem({ initial, onRemoved }: { initial: Resource; onRemoved: (id: string) => void }) {
   const [item, setItem] = useState(initial);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const action = useAction();
   const service = createResourceAdminService;
+  const canPublish = item.status === "zweryfikowany" && !!item.verified_by && !!item.verified_at;
   const status = (name: string, op: (s: ReturnType<typeof createResourceAdminService>, signal: AbortSignal) => Promise<Resource>, done: string) =>
     action.run(name, async (signal) => { const r = await op(service(), signal); setItem(r); return done; });
   return <li className="min-w-0"><article aria-label={item.title} className="space-y-3 rounded-2xl border border-border bg-card p-[20px]">
@@ -100,16 +108,30 @@ function ResourceItem({ initial }: { initial: Resource }) {
     <p className="text-sm [overflow-wrap:anywhere]"><a href={item.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline underline-offset-4">{item.url}<span className="sr-only"> (otwiera się w nowej karcie)</span></a></p>
     <p className="text-sm text-muted-foreground">{item.status === PUBLISHED ? "Widoczny publicznie w Zasobniku." : "Niewidoczny publicznie."} Ostatnia zmiana: <time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time></p>
     <div className="flex flex-wrap gap-3">
-      <Button type="button" variant="outline" disabled={action.pending !== ""} aria-expanded={editing} onClick={() => setEditing((v) => !v)} className={BTN}>{editing ? "Zamknij edycję" : "Edytuj"}</Button>
-      {item.status !== PUBLISHED && item.status !== "zweryfikowany" && <Button type="button" variant="outline" disabled={action.pending !== ""} onClick={() => void status("verify", (s, sig) => s.verify(item.id, sig), "Zasób oznaczono jako zweryfikowany.")} className={BTN}>{action.pending === "verify" ? "Weryfikujemy…" : "Oznacz jako zweryfikowany"}</Button>}
-      {item.status !== PUBLISHED && <Button type="button" disabled={action.pending !== ""} onClick={() => void status("publish", (s, sig) => s.publish(item.id, sig), "Opublikowano — zasób jest widoczny w Zasobniku.")} className={BTN}>{action.pending === "publish" ? "Publikujemy…" : "Opublikuj"}</Button>}
-      {item.status === PUBLISHED && <Button type="button" variant="outline" disabled={action.pending !== ""} onClick={() => void status("unpublish", (s, sig) => s.unpublish(item.id, sig), "Wycofano publikację — zasób jest szkicem i zniknął z Zasobnika.")} className={BTN}>{action.pending === "unpublish" ? "Wycofujemy…" : "Wycofaj publikację"}</Button>}
+      <Button type="button" variant="outline" disabled={action.pending !== "" || deleting || saving} aria-expanded={editing} onClick={() => { action.setFeedback(null); setEditing((v) => !v); }} className={BTN}>{editing ? "Zamknij edycję" : "Edytuj"}</Button>
+      {item.status !== PUBLISHED && !canPublish && <Button type="button" variant="outline" disabled={action.pending !== "" || editing || deleting} onClick={() => void status("verify", (s, sig) => s.verify(item.id, sig), "Zasób oznaczono jako zweryfikowany.")} className={BTN}>{action.pending === "verify" ? "Weryfikujemy…" : "Oznacz jako zweryfikowany"}</Button>}
+      {canPublish && <Button type="button" disabled={action.pending !== "" || editing || deleting} onClick={() => void status("publish", (s, sig) => s.publish(item.id, sig), "Opublikowano — zasób jest widoczny w Zasobniku.")} className={BTN}>{action.pending === "publish" ? "Publikujemy…" : "Opublikuj"}</Button>}
+      {item.status === PUBLISHED && <Button type="button" variant="outline" disabled={action.pending !== "" || editing || deleting} onClick={() => void status("unpublish", (s, sig) => s.unpublish(item.id, sig), "Wycofano publikację — zasób pozostaje zweryfikowany i zniknął z Zasobnika.")} className={BTN}>{action.pending === "unpublish" ? "Wycofujemy…" : "Wycofaj publikację"}</Button>}
+      <Button type="button" variant="outline" disabled={action.pending !== "" || editing || deleting} onClick={() => { setDeleting(true); setConfirmed(false); }} className={BTN}>Usuń zasób</Button>
     </div>
+    {item.status !== PUBLISHED && !canPublish && <p className="text-sm">Przed publikacją wymagana jest weryfikacja źródła i treści przez ROPS.</p>}
+    {deleting && <div role="group" aria-label={`Potwierdzenie usunięcia: ${item.title}`} className="space-y-3 rounded-lg border border-destructive p-4">
+      <p>Trwale usunąć „{item.title}” (ID: {item.id})? Materiał zostanie usunięty również z publicznego Zasobnika. Tej operacji nie można cofnąć.</p>
+      <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={confirmed} disabled={action.pending !== ""} onChange={(e) => setConfirmed(e.target.checked)} />Rozumiem i potwierdzam usunięcie tego zasobu</label>
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" variant="destructive" disabled={!confirmed || action.pending !== ""} className={BTN} onClick={() => void action.run("delete", async (signal) => {
+          await service().remove(item.id, signal); onRemoved(item.id); return "Potwierdzono usunięcie zasobu.";
+        })}>{action.pending === "delete" ? "Usuwamy…" : "Potwierdź trwałe usunięcie"}</Button>
+        <Button type="button" variant="outline" disabled={action.pending !== ""} className={BTN} onClick={() => { setDeleting(false); setConfirmed(false); }}>Anuluj</Button>
+      </div>
+    </div>}
     {action.feedback && <StatusMessage error={action.feedback.error}>{action.feedback.message}</StatusMessage>}
     {editing && <div className="border-t border-border pt-4">
-      <ResourceForm key={item.updated_at} prefix={`edit-${item.id}`} initial={draftFromResource(item)} submitLabel="Zapisz zmiany" onSave={async (d, signal) => {
+      <ResourceForm onBusyChange={setSaving} prefix={`edit-${item.id}`} initial={draftFromResource(item)} submitLabel="Zapisz zmiany" onSave={async (d, signal) => {
         const r = await service().update(item.id, d, signal); setItem(r);
-        return r.status === PUBLISHED ? "Zapisano i potwierdzono. Zmiany są widoczne publicznie." : "Zapisano i potwierdzono.";
+        return r.status === "roboczy"
+          ? "Zapisano i potwierdzono: szkic. Przed publikacją konieczna jest ponowna weryfikacja źródła i treści."
+          : `Zapisano i potwierdzono. Status: ${label(RESOURCE_STATUS_LABELS, r.status)}.`;
       }} />
     </div>}
   </article></li>;
@@ -121,6 +143,8 @@ export function ResourcesAdminSection() {
   const [statusFilter, setStatusFilter] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [formKey, setFormKey] = useState(0);
+  const [removed, setRemoved] = useState<string[]>([]);
+  const [notice, setNotice] = useState("");
   const load = useCallback((signal: AbortSignal) => createResourceAdminService().list({ status: statusFilter || undefined, group_id: groupFilter || undefined }, signal), [statusFilter, groupFilter]);
   const { state, refresh } = useBackendQuery(`rops-resources:${statusFilter}:${groupFilter}`, load);
   return <section aria-labelledby={`${id}-h`} className="space-y-8 border-t border-border pt-10">
@@ -132,10 +156,12 @@ export function ResourcesAdminSection() {
       <h3 id={`${id}-add`} className="text-xl font-semibold">Dodaj zasób (szkic)</h3>
       <ResourceForm key={formKey} prefix="new-resource" initial={emptyResourceDraft()} submitLabel="Zapisz szkic" onSave={async (d, signal) => {
         const r = await createResourceAdminService().create(d, signal);
+        setNotice(`Zapisano szkic „${r.title}”. Nie jest widoczny publicznie.`);
         setFormKey((k) => k + 1); refresh();
         return `Zapisano szkic „${r.title}”. Nie jest widoczny publicznie.`;
       }} />
     </section>
+    {notice && <StatusMessage>{notice}</StatusMessage>}
     <section aria-labelledby={`${id}-list`} className="space-y-5">
       <h3 id={`${id}-list`} className="text-xl font-semibold">Zasoby w bazie</h3>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -147,8 +173,8 @@ export function ResourcesAdminSection() {
       <Button variant="outline" onClick={refresh} className={BTN}>Odśwież listę</Button>
       {state.status === "loading" && <LoadingMessage>Wczytujemy zasoby…</LoadingMessage>}
       {state.status === "error" && <div className="space-y-3"><StatusMessage error>{state.message}</StatusMessage><Button variant="outline" onClick={refresh} className={BTN}>Spróbuj ponownie</Button></div>}
-      {state.status === "success" && (state.data.length === 0 ? <StatusMessage>Brak zasobów dla wybranych filtrów.</StatusMessage>
-        : <ul className="space-y-4">{state.data.map((r) => <ResourceItem key={`${r.id}:${r.updated_at}`} initial={r} />)}</ul>)}
+      {state.status === "success" && (state.data.filter((r) => !removed.includes(r.id)).length === 0 ? <StatusMessage>Brak zasobów dla wybranych filtrów.</StatusMessage>
+        : <ul className="space-y-4">{state.data.filter((r) => !removed.includes(r.id)).map((r) => <ResourceItem key={`${r.id}:${r.updated_at}`} initial={r} onRemoved={(id) => { setRemoved((ids) => [...ids, id]); setNotice(`Potwierdzono trwałe usunięcie zasobu (ID: ${id}).`); }} />)}</ul>)}
     </section>
   </section>;
 }

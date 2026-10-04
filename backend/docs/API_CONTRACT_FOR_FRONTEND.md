@@ -343,19 +343,25 @@ Struktura rekordu zasobu:
 ```
 
 #### 3. Panel ROPS: Dodawanie, Edycja, Weryfikacja i Publikacja
-Wymaga uprawnień administratora (`Authorization: Bearer <jwt>` z rolą `rops_admin` lub deweloperskiego `X-Admin-Role: rops_admin`).
+Wymaga zweryfikowanego konta administratora (`Authorization: Bearer <jwt>`). Nagłówki `X-Admin-Role` / `X-Test-User-Id` działają wyłącznie w testach, nie zastępują logowania do uruchomionego API.
 
 - **Lista wszystkich zasobów (wraz ze szkicami i zweryfikowanymi)**: `GET /api/admin/knowledge-resources`
-- **Dodanie nowego zasobu (tworzony jako `roboczy` lub z wybranym statusem)**: `POST /api/admin/knowledge-resources`
-  - Waliduje bezpieczeństwo URL (wymagany bezpieczny protokół HTTPS).
+- **Dodanie nowego zasobu (domyślnie `roboczy`, opcjonalnie `do_weryfikacji`)**: `POST /api/admin/knowledge-resources`
+  - Waliduje bezpieczeństwo URL (wymagany bezpieczny protokół HTTPS). Bezpośrednie `opublikowany` jest odrzucane (422); frontend tworzy bez pola status i audytu.
 - **Szczegóły zasobu**: `GET /api/admin/knowledge-resources/{id}`
 - **Edycja zasobu**: `PUT /api/admin/knowledge-resources/{id}`
+  - Zmiana treści lub źródła zweryfikowanego/opublikowanego materiału cofa status do `roboczy` i czyści audyt weryfikacji oraz publikacji. Jawne `caveat: null` usuwa zastrzeżenie; pominięte pole zachowuje wartość. Frontend wysyła wyłącznie treść.
 - **Weryfikacja zasobu przez ROPS**: `POST /api/admin/knowledge-resources/{id}/verify`
   - Body: `{"verification_notes": "Odnośnik sprawdzony, plik dostępny cyfrowo."}`
   - Ustawia status `zweryfikowany`, stempel czasowy `verified_at` oraz audyt weryfikatora.
 - **Publikacja zasobu w Zasobniku**: `POST /api/admin/knowledge-resources/{id}/publish`
-  - Ustawia status `opublikowany` – zasób staje się natychmiast dostępny w publicznym API.
+  - Wymaga statusu `zweryfikowany` oraz istniejącego `verified_by` i `verified_at` (inaczej 400). Ustawia status `opublikowany`; nie wykonuje weryfikacji automatycznie.
+- **Wycofanie publikacji**: `POST /api/admin/knowledge-resources/{id}/unpublish`
+  - Zachowuje formalną weryfikację, ustawia `zweryfikowany` i czyści audyt publikacji. Publiczny odczyt zwraca 404.
 - **Usunięcie zasobu**: `DELETE /api/admin/knowledge-resources/{id}`
+  - Zwraca `{success: true, id, message}` po sprawdzeniu braku rekordu. Błąd odczytu kontrolnego zwraca 502; frontend dodatkowo wymaga 404 z GET dla tego samego ID.
+
+Zasoby są przechowywane wyłącznie w Supabase. Brak konfiguracji zwraca 503, błąd odczytu 502, a niepotwierdzony zapis 500. Nie ma pamięciowego fallbacku. Migracja `12_correct_knowledge_source.sql` poprawia wyłącznie oryginalny wpis z nieistniejącym adresem filmu i cofa go do szkicu; wymaga ponownej weryfikacji i publikacji przez ROPS.
 
 #### 4. Wiarygodność Danych Innowacji i Oznaczenie Wzorców Demonstracyjnych
 - **Usunięto wymyślone adresy ROPS**: Wszystkie rekordy w `backend/scripts/data/innovations.json` oraz w endpointach `/api/innovations` i `/api/match` mają zweryfikowane adresy baz innowacji ROPS Kraków (`https://rops.krakow.pl/innowacje-spoleczne/biblioteka-innowacji-spolecznych/kategorie`, `innowacje-w-malopolskich-modelach`, `innowacjespoleczne.org.pl`).

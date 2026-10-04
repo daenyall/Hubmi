@@ -1,5 +1,7 @@
 # Zasobnik Wiedzy — implementacja i weryfikacja
 
+Aktualne domknięcie etapu 6 na prawdziwym backendzie/Supabase: [stage-6-verification.md](stage-6-verification.md). Poniżej zachowano historyczny raport wcześniejszego katalogu.
+
 Stan lokalny: 2026-10-03, baza kodu `11bdee1`. Nie wykonywano pull, merge, rebase, push ani wdrożenia. Zachowano wcześniejszą zmianę `package-lock.json` oraz usunięcie `backend/.env.example`.
 
 ## Działanie
