@@ -57,4 +57,4 @@ Atrapy/symulacje: testy jednostkowe oraz wcześniejszy kontrolowany 503 zapisu p
 
 `tests/e2e/stage7-main.mjs` obejmuje demo, potrzeby i podstawową obsługę klawiaturą/małego ekranu; wymaga istniejącego Playwright/Chromium oraz serwerów. Nie jest nową pełną macierzą audytu. Pozostałe moduły mają zachowane dowody zakończonych odcinków, z ponowieniem tylko dotkniętych zmianami testów.
 
-Nie pozostają zgłoszenia blokujące wymagające dostępu Radka. Nie wykonano deployu ani automatycznego merge. Env oraz zastane zmiany `frontend/package-lock.json` i `frontend/tests/grants.test.mjs` zachowano i wyłączono z commitu. Cudzych PDF/PPTX i danych nie zmieniano.
+Nie pozostają zgłoszenia blokujące wymagające dostępu Radka. Nie uruchamiano ręcznego deployu ani automatycznego merge. Istniejąca integracja GitHub–Vercel automatycznie wykonała deployment po pushu (check Vercel: SUCCESS, „Deployment has completed”); nie zastępuje to weryfikacji finalnego publicznego wdrożenia. Env oraz zastane zmiany `frontend/package-lock.json` i `frontend/tests/grants.test.mjs` zachowano i wyłączono z commitu. Cudzych PDF/PPTX i danych nie zmieniano.
