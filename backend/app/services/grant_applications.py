@@ -349,11 +349,13 @@ def create_grant_application(
     _memory_applications_store[app_id] = dict(row_data)
     return _map_application_to_response(row_data, call_info=call.model_dump())
 
-
 def list_user_applications(user_id: str) -> List[GrantApplicationResponse]:
     """
     Pobiera wszystkie wnioski danego autora (pełna izolacja danych).
     """
+    seen_ids = set()
+    results: List[GrantApplicationResponse] = []
+
     supabase = get_supabase_client()
     if supabase:
         try:
@@ -365,19 +367,25 @@ def list_user_applications(user_id: str) -> List[GrantApplicationResponse]:
                 .execute()
             )
             rows = _to_dict_list(res.data)
-            return [_map_application_to_response(r) for r in rows]
+            for r in rows:
+                if r.get("id"):
+                    seen_ids.add(r["id"])
+                    results.append(_map_application_to_response(r))
         except Exception:
             pass
 
-    # Pamięć fallback
+    # Pamięć fallback / uzupełnienie
     user_rows = [
         r for r in _memory_applications_store.values() if r.get("user_id") == user_id
     ]
-    user_rows.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    results: List[GrantApplicationResponse] = []
+    user_rows.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
     for r in user_rows:
-        c_info = _memory_calls_store.get(r.get("call_id"))
-        results.append(_map_application_to_response(r, call_info=c_info))
+        rid = str(r.get("id") or "")
+        if rid and rid not in seen_ids:
+            seen_ids.add(rid)
+            cid = str(r.get("call_id") or "")
+            c_info = _memory_calls_store.get(cid) if cid else None
+            results.append(_map_application_to_response(r, call_info=c_info))
     return results
 
 
@@ -401,7 +409,8 @@ def get_application_by_id_raw(application_id: str) -> Optional[Dict[str, Any]]:
 
     if application_id in _memory_applications_store:
         r = dict(_memory_applications_store[application_id])
-        c = _memory_calls_store.get(r.get("call_id"))
+        cid = str(r.get("call_id") or "")
+        c = _memory_calls_store.get(cid) if cid else None
         if c:
             r["grant_calls"] = {"name": c.get("name"), "status": c.get("status")}
         return r
@@ -881,6 +890,9 @@ def admin_list_applications(
     """
     Pobiera wszystkie wnioski grantowe dla Administratora ROPS Kraków z filtrami.
     """
+    seen_ids = set()
+    results: List[GrantApplicationResponse] = []
+
     supabase = get_supabase_client()
     if supabase:
         try:
@@ -891,24 +903,32 @@ def admin_list_applications(
                 query = query.eq("status", status_filter)
             res = query.order("created_at", desc=True).limit(limit).execute()
             rows = _to_dict_list(res.data)
-            return [_map_application_to_response(r) for r in rows]
+            for r in rows:
+                if r.get("id"):
+                    seen_ids.add(r["id"])
+                    results.append(_map_application_to_response(r))
         except Exception:
             pass
 
-    # Pamięć fallback
+    # Pamięć fallback / uzupełnienie
     rows = list(_memory_applications_store.values())
     if call_id:
         rows = [r for r in rows if r.get("call_id") == call_id]
     if status_filter:
         rows = [r for r in rows if r.get("status") == status_filter]
-    rows.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    rows = rows[:limit]
+    rows.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
-    results: List[GrantApplicationResponse] = []
     for r in rows:
-        c_info = _memory_calls_store.get(r.get("call_id"))
-        results.append(_map_application_to_response(r, call_info=c_info))
-    return results
+        rid = str(r.get("id") or "")
+        if rid and rid not in seen_ids:
+            seen_ids.add(rid)
+            cid = str(r.get("call_id") or "")
+            c_info = _memory_calls_store.get(cid) if cid else None
+            results.append(_map_application_to_response(r, call_info=c_info))
+            if len(results) >= limit:
+                break
+
+    return results[:limit]
 
 
 def admin_update_application_status(
@@ -956,7 +976,8 @@ def admin_update_application_status(
     if application_id in _memory_applications_store:
         _memory_applications_store[application_id].update(update_dict)
         r = _memory_applications_store[application_id]
-        c_info = _memory_calls_store.get(r.get("call_id"))
+        cid = str(r.get("call_id") or "")
+        c_info = _memory_calls_store.get(cid) if cid else None
         return _map_application_to_response(r, call_info=c_info)
 
     raise HTTPException(
