@@ -30,7 +30,7 @@ const { createTesterService } = require(join(output, "features/tester/service.js
 const APP_ID = "11111111-2222-4333-8444-555555555555";
 const appDraft = { ...model.emptyApplication("inv_01"), institution_name: "Gmina Testowa", contact_person: "Jan Test", contact_email: "test@example.org", target_audience_count: "20" };
 const fbDraft = { ...model.emptyFeedback("inv_01"), rating_usability: "4", rating_effectiveness: "5", rating_accessibility: "3", would_recommend: "tak", author_name: "Gmina Testowa" };
-const appRow = (over = {}) => ({ id: APP_ID, innovation_id: "inv_01", tester_type: "JST", institution_name: "Gmina Testowa", contact_person: "Jan Test", contact_email: "test@example.org", contact_phone: null, testing_scope: "pilotaz_3m", target_audience_count: 20, status: "nowe", notes: null, created_at: "2026-10-04T10:00:00+00:00", updated_at: null, ...over });
+const appRow = (over = {}) => ({ id: APP_ID, innovation_id: "inv_01", tester_type: "JST", institution_name: "Gmina Testowa", contact_person: "Jan Test", contact_email: "test@example.org", contact_phone: null, testing_scope: "pilotaz_3m", target_audience_count: 20, status: "nowe", notes: null, rops_notes: null, created_at: "2026-10-04T10:00:00+00:00", updated_at: null, ...over });
 const fbRow = (over = {}) => ({ id: "f-1", innovation_id: "inv_01", application_id: null, rating_usability: 4, rating_effectiveness: 5, rating_accessibility: 3, average_score: 4, pros: null, cons_and_barriers: null, suggested_improvements: null, would_recommend: true, author_name: "Gmina Testowa", created_at: null, ...over });
 const summary = (recent, total = recent.length) => ({ innovation_id: "inv_01", total_reviews: total, avg_usability: 4, avg_effectiveness: 5, avg_accessibility: 3, overall_rating: 4, recommendation_percentage: 100, recent_reviews: recent });
 function fakeSession(handler) {
@@ -56,8 +56,8 @@ test("payload opinii nie zawiera statusu pilotażu", () => {
   assert.equal("status" in p, false);
 });
 
-test("brak opinii nie jest pokazywany jako 0/5 ani 100% rekomendacji", () => {
-  const empty = model.parseFeedbackSummary({ ...summary([]), avg_usability: 0, overall_rating: 0, recommendation_percentage: 100 });
+test("brak opinii nie jest pokazywany jako średnia 0/5", () => {
+  const empty = model.parseFeedbackSummary({ ...summary([]), avg_usability: 0, overall_rating: 0, recommendation_percentage: 0 });
   assert.equal(model.ratingLines(empty), null);
   assert.equal(model.ratingLines(model.parseFeedbackSummary(summary([fbRow()]))).length, 5);
 });
@@ -100,15 +100,80 @@ test("ROPS: lista w trybie rops, status tylko z listy i potwierdzony ponownym od
   await createTesterService(list).applications({ status: "nowe" });
   assert.equal(list.calls[0].mode, "rops");
   assert.equal(list.calls[0].path, "/api/testing/applications?limit=100&status=nowe");
-  const upd = fakeSession((path, init) => init.method === "PATCH"
-    ? { ok: true, status: 200, data: appRow({ status: "w_trakcie" }), authenticated: true }
-    : { ok: true, status: 200, data: appRow({ status: "w_trakcie" }), authenticated: true });
-  assert.equal((await createTesterService(upd).updateStatus(APP_ID, "w_trakcie", "")).status, "w_trakcie");
+  const upd = fakeSession(() => ({ ok: true, status: 200, data: appRow({ status: "w_trakcie" }), authenticated: true }));
+  assert.equal((await createTesterService(upd).updateStatus(appRow(), "w_trakcie", undefined)).status, "w_trakcie");
   const stale = fakeSession((path, init) => init.method === "PATCH"
     ? { ok: true, status: 200, data: appRow({ status: "w_trakcie" }), authenticated: true }
     : { ok: true, status: 200, data: appRow({ status: "nowe" }), authenticated: true });
-  await assert.rejects(createTesterService(stale).updateStatus(APP_ID, "w_trakcie", ""), /Ponowny odczyt pokazał status „Nowe”/);
-  await assert.rejects(createTesterService(upd).updateStatus(APP_ID, "zamkniete", ""), /Wybierz status/);
+  await assert.rejects(createTesterService(stale).updateStatus(appRow(), "w_trakcie", undefined), /Ponowny odczyt pokazał status „Nowe”/);
+  await assert.rejects(createTesterService(upd).updateStatus(appRow(), "zamkniete", undefined), /Wybierz status/);
   const denied = fakeSession(() => ({ ok: false, status: 403, data: null, authenticated: true }));
   await assert.rejects(createTesterService(denied).applications({}), /nie ma uprawnień/);
+});
+
+// ---------- rozdzielenie uwag zgłaszającego (notes) i notatki ROPS (rops_notes) ----------
+const APPLICANT = "Uwagi zgłaszającego — rekord testowy";
+
+test("parser czyta rops_notes osobno; null i brak pola dają null", () => {
+  assert.equal(model.parseApplication(appRow({ notes: APPLICANT, rops_notes: "Notatka" })).rops_notes, "Notatka");
+  assert.equal(model.parseApplication(appRow({ notes: APPLICANT, rops_notes: "Notatka" })).notes, APPLICANT);
+  assert.equal(model.parseApplication(appRow({ rops_notes: null })).rops_notes, null);
+  const { rops_notes: _omit, ...legacy } = appRow();
+  assert.equal(model.parseApplication(legacy).rops_notes, null);
+  assert.throws(() => model.parseApplication(appRow({ rops_notes: 7 })), /rops_notes/);
+});
+
+test("ropsNoteChange: brak zmiany, nowa treść i wyczyszczenie", () => {
+  assert.equal(model.ropsNoteChange(null, ""), undefined);
+  assert.equal(model.ropsNoteChange(null, "   "), undefined);
+  assert.equal(model.ropsNoteChange("", ""), undefined);
+  assert.equal(model.ropsNoteChange("Notatka", " Notatka "), undefined);
+  assert.equal(model.ropsNoteChange(null, " Nowa "), "Nowa");
+  assert.equal(model.ropsNoteChange("Stara", "Nowa"), "Nowa");
+  assert.equal(model.ropsNoteChange("Stara", ""), "", "wyczyszczenie wysyła pustą wartość");
+});
+
+function patchSession(after) {
+  return fakeSession((path, init) => ({ ok: true, status: 200, data: init.method === "PATCH" ? after : after, authenticated: true }));
+}
+
+test("sama zmiana statusu nie wysyła notes ani rops_notes", async () => {
+  const s = patchSession(appRow({ notes: APPLICANT, status: "zaakceptowane" }));
+  await createTesterService(s).updateStatus(appRow({ notes: APPLICANT }), "zaakceptowane", model.ropsNoteChange(null, ""));
+  assert.deepEqual(s.calls[0].init.body, { status: "zaakceptowane" });
+  assert.equal(s.calls[1].init.method, "GET", "zapis potwierdzony ponownym odczytem");
+});
+
+test("dodanie, zmiana i wyczyszczenie notatki wysyła tylko rops_notes", async () => {
+  const add = patchSession(appRow({ notes: APPLICANT, rops_notes: "Pierwsza" }));
+  await createTesterService(add).updateStatus(appRow({ notes: APPLICANT }), "nowe", model.ropsNoteChange(null, "Pierwsza"));
+  assert.deepEqual(add.calls[0].init.body, { status: "nowe", rops_notes: "Pierwsza" });
+
+  const edit = patchSession(appRow({ notes: APPLICANT, rops_notes: "Druga" }));
+  await createTesterService(edit).updateStatus(appRow({ notes: APPLICANT, rops_notes: "Pierwsza" }), "nowe", model.ropsNoteChange("Pierwsza", "Druga"));
+  assert.deepEqual(edit.calls[0].init.body, { status: "nowe", rops_notes: "Druga" });
+
+  const clear = patchSession(appRow({ notes: APPLICANT, rops_notes: "" }));
+  const cleared = await createTesterService(clear).updateStatus(appRow({ notes: APPLICANT, rops_notes: "Druga" }), "nowe", model.ropsNoteChange("Druga", ""));
+  assert.deepEqual(clear.calls[0].init.body, { status: "nowe", rops_notes: "" });
+  assert.equal(cleared.notes, APPLICANT);
+
+  const clearNull = patchSession(appRow({ notes: APPLICANT, rops_notes: null }));
+  await createTesterService(clearNull).updateStatus(appRow({ notes: APPLICANT, rops_notes: "Druga" }), "nowe", "");
+  for (const s of [add, edit, clear, clearNull]) assert.equal("notes" in s.calls[0].init.body, false, "notes nigdy nie jest wysyłane");
+});
+
+test("odczyt po zapisie wykrywa zmienione uwagi zgłaszającego lub inną notatkę", async () => {
+  const merged = patchSession(appRow({ notes: `${APPLICANT}\n\n[Notatka ROPS]: X`, rops_notes: "X" }));
+  await assert.rejects(createTesterService(merged).updateStatus(appRow({ notes: APPLICANT }), "nowe", "X"), /zmienione uwagi zgłaszającego/);
+  const other = patchSession(appRow({ notes: APPLICANT, rops_notes: "Stara" }));
+  await assert.rejects(createTesterService(other).updateStatus(appRow({ notes: APPLICANT, rops_notes: "Stara" }), "nowe", "Nowa"), /inną notatkę ROPS/);
+});
+
+test("błąd zapisu statusu: 422 i 400 z przyczyną, bez potwierdzenia", async () => {
+  const invalid = fakeSession(() => ({ ok: false, status: 422, data: { detail: [] }, authenticated: true }));
+  await assert.rejects(createTesterService(invalid).updateStatus(appRow(), "nowe", undefined), /odrzuciła dane.*pozostała w formularzu/);
+  assert.equal(invalid.calls.length, 1, "po błędzie nie ma odczytu potwierdzającego");
+  const bad = fakeSession(() => ({ ok: false, status: 400, data: { detail: "Niedozwolony status." }, authenticated: true }));
+  await assert.rejects(createTesterService(bad).updateStatus(appRow(), "nowe", undefined), /Niedozwolony status\. Wpisana treść/);
 });
